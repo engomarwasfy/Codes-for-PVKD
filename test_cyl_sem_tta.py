@@ -74,42 +74,46 @@ def main(args):
     output_path = 'out_cyl/test'
     voting_num = 4
 
-    if True:
-        print('*'*80)
-        print('Generate predictions for test split')
-        print('*'*80)
-        pbar = tqdm(total=len(test_dataset_loader))
-        time.sleep(10)
-        if True:
-            if True:
-                my_model.eval()
-                with torch.no_grad():
-                    for i_iter_test, (_, _, test_grid, _, test_pt_fea, test_index) in enumerate(
-                            test_dataset_loader):
-                        test_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in
-                                          test_pt_fea]
-                        test_grid_ten = [torch.from_numpy(i).to(pytorch_device) for i in test_grid]
+    print('*'*80)
+    print('Generate predictions for test split')
+    print('*'*80)
+    pbar = tqdm(total=len(test_dataset_loader))
+    time.sleep(10)
+    my_model.eval()
+    with torch.no_grad():
+        for _, _, test_grid, _, test_pt_fea, test_index in test_dataset_loader:
+            test_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in
+                              test_pt_fea]
+            test_grid_ten = [torch.from_numpy(i).to(pytorch_device) for i in test_grid]
 
-                        predict_labels = my_model(test_pt_fea_ten, test_grid_ten, val_batch_size, test_grid, voting_num, use_tta=True)
-                        predict_labels = torch.argmax(predict_labels, dim=0).type(torch.uint8)
-                        predict_labels = predict_labels.cpu().detach().numpy()
-                        test_pred_label = np.expand_dims(predict_labels,axis=1)
-                        save_dir = test_pt_dataset.im_idx[test_index[0]]
-                        _,dir2 = save_dir.split('/sequences/',1)
-                        new_save_dir = output_path + '/sequences/' +dir2.replace('velodyne','predictions')[:-3]+'label'
-                        if not os.path.exists(os.path.dirname(new_save_dir)):
-                            try:
-                                os.makedirs(os.path.dirname(new_save_dir))
-                            except OSError as exc:
-                                if exc.errno != errno.EEXIST:
-                                    raise
-                        test_pred_label = test_pred_label.astype(np.uint32)
-                        test_pred_label.tofile(new_save_dir)
-                        pbar.update(1)
-                del test_grid, test_pt_fea, test_grid_ten, test_index
-        pbar.close()
-        print('Predicted test labels are saved in %s. Need to be shifted to original label format before submitting to the Competition website.' % output_path)
-        print('Remapping script can be found in semantic-kitti-api.')
+            predict_labels = my_model(test_pt_fea_ten, test_grid_ten, val_batch_size, test_grid, voting_num, use_tta=True)
+            predict_labels = torch.argmax(predict_labels, dim=0).type(torch.uint8)
+            predict_labels = predict_labels.cpu().detach().numpy()
+            test_pred_label = np.expand_dims(predict_labels,axis=1)
+            save_dir = test_pt_dataset.im_idx[test_index[0]]
+            _,dir2 = save_dir.split('/sequences/',1)
+            new_save_dir = (
+                f'{output_path}/sequences/'
+                + dir2.replace('velodyne', 'predictions')[:-3]
+                + 'label'
+            )
+
+            if not os.path.exists(os.path.dirname(new_save_dir)):
+                try:
+                    os.makedirs(os.path.dirname(new_save_dir))
+                except OSError as exc:
+                    if exc.errno != errno.EEXIST:
+                        raise
+            test_pred_label = test_pred_label.astype(np.uint32)
+            test_pred_label.tofile(new_save_dir)
+            pbar.update(1)
+    del test_grid, test_pt_fea, test_grid_ten, test_index
+    pbar.close()
+    print(
+        f'Predicted test labels are saved in {output_path}. Need to be shifted to original label format before submitting to the Competition website.'
+    )
+
+    print('Remapping script can be found in semantic-kitti-api.')
 
 if __name__ == '__main__':
     # Training settings

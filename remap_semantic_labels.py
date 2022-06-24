@@ -79,7 +79,7 @@ if __name__ == '__main__':
   # assert split
   assert(FLAGS.split in splits)
 
-  print("Opening data config file %s" % FLAGS.datacfg)
+  print(f"Opening data config file {FLAGS.datacfg}")
   DATA = yaml.safe_load(open(FLAGS.datacfg, 'r'))
 
   # get number of interest classes, and the label mappings

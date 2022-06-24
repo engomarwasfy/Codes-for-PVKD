@@ -175,7 +175,7 @@ class cylinder_dataset(data.Dataset):
             rot_mat_T = np.array(
                 [[rot_cos, 0, -rot_sin], [0, 1, 0], [rot_sin, 0, rot_cos]],
                 dtype=points.dtype)
-        elif axis == 2 or axis == -1:
+        elif axis in [2, -1]:
             rot_mat_T = np.array(
                 [[rot_cos, -rot_sin, 0], [rot_sin, rot_cos, 0], [0, 0, 1]],
                 dtype=points.dtype)
@@ -191,17 +191,15 @@ class cylinder_dataset(data.Dataset):
     def __getitem__(self, index):
         'Generates one sample of data'
         data = self.point_cloud_dataset[index]
-        if self.use_tta:
-            data_total = []
-            voting = 4
-            for idx in range(voting):
-                data_single_ori = self.get_single_sample(data, index, idx)
-                data_total.append(data_single_ori)
-            data_total = tuple(data_total)
-            return data_total
-        else:
-            data_single = self.get_single_sample(data, index)            
-            return data_single
+        if not self.use_tta:
+            return self.get_single_sample(data, index)
+        data_total = []
+        voting = 4
+        for idx in range(voting):
+            data_single_ori = self.get_single_sample(data, index, idx)
+            data_total.append(data_single_ori)
+        data_total = tuple(data_total)
+        return data_total
 
     def get_single_sample(self, data, index, vote_idx=0):
         if len(data) == 2:
@@ -224,10 +222,7 @@ class cylinder_dataset(data.Dataset):
 
         # random data augmentation by flip x , y or x+y
         if self.flip_aug:
-            if self.use_tta:
-                flip_type = vote_idx
-            else:
-                flip_type = np.random.choice(4, 1)
+            flip_type = vote_idx if self.use_tta else np.random.choice(4, 1)
             if flip_type == 1:
                 xyz[:, 0] = -xyz[:, 0]
             elif flip_type == 2:
@@ -285,7 +280,7 @@ class cylinder_dataset(data.Dataset):
 
         if len(data) == 2:
             return_fea = return_xyz
-        elif len(data) == 3 or len(data) == 4:
+        elif len(data) in {3, 4}:
             return_fea = np.concatenate((return_xyz, sig[..., np.newaxis]), axis=1)
 
         if self.return_test:
@@ -470,34 +465,23 @@ def collate_fn_BEV_tta(data):
     voxel_label = []
 
     for da1 in data:
-        for da2 in da1:
-            voxel_label.append(da2[1])
-
+        voxel_label.extend(da2[1] for da2 in da1)
     #voxel_label.astype(np.int)
 
     grid_ind_stack = []
     for da1 in data:
-        for da2 in da1:
-            grid_ind_stack.append(da2[2])
-
-
-
+        grid_ind_stack.extend(da2[2] for da2 in da1)
     point_label = []
 
     for da1 in data:
-        for da2 in da1:
-            point_label.append(da2[3])
-
+        point_label.extend(da2[3] for da2 in da1)
     xyz = []
 
     for da1 in data:
-        for da2 in da1:
-            xyz.append(da2[4])
+        xyz.extend(da2[4] for da2 in da1)
     index = []
     for da1 in data:
-        for da2 in da1:
-            index.append(da2[5])
-
+        index.extend(da2[5] for da2 in da1)
     return xyz, xyz, grid_ind_stack, point_label, xyz, index
 
 def collate_fn_BEV_ms(data):
@@ -514,40 +498,26 @@ def collate_fn_BEV_ms_tta(data):
     voxel_label = []
 
     for da1 in data:
-        for da2 in da1:
-            voxel_label.append(da2[1])
-
+        voxel_label.extend(da2[1] for da2 in da1)
     #voxel_label.astype(np.int)
 
     grid_ind_stack = []
     for da1 in data:
-        for da2 in da1:
-            grid_ind_stack.append(da2[2])
-
-
-
+        grid_ind_stack.extend(da2[2] for da2 in da1)
     point_label = []
 
     for da1 in data:
-        for da2 in da1:
-            point_label.append(da2[3])
-
+        point_label.extend(da2[3] for da2 in da1)
     xyz = []
 
     for da1 in data:
-        for da2 in da1:
-            xyz.append(da2[4])
-
+        xyz.extend(da2[4] for da2 in da1)
     index = []
 
     for da1 in data:
-        for da2 in da1:
-            index.append(da2[5])
-
+        index.extend(da2[5] for da2 in da1)
     origin_len = []
 
     for da1 in data:
-        for da2 in da1:
-            origin_len.append(da2[6])
-
+        origin_len.extend(da2[6] for da2 in da1)
     return xyz, xyz, grid_ind_stack, point_label, xyz, index, origin_len
