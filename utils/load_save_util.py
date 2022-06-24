@@ -19,7 +19,7 @@ def load_checkpoint(model_load_path, model):
             match_size += 1
             part_load[k] = value
         else:
-            assert len(value.shape) == 1 or len(value.shape) == 5
+            assert len(value.shape) in {1, 5}
             if len(value.shape) == 1:
                 c = value.shape[0]
                 cc = my_model_dict[k].shape[0] - c #int(c*0.5)
@@ -46,9 +46,9 @@ def load_checkpoint(model_load_path, model):
             nomatch_size += 1
             part_load[k] = value
             assert my_model_dict[k].shape == value.shape
-            #print("model shape:{}, pre shape:{}".format(str(my_model_dict[k].shape), str(value.shape)))
+                    #print("model shape:{}, pre shape:{}".format(str(my_model_dict[k].shape), str(value.shape)))
 
-    print("matched parameter sets: {}, and no matched: {}".format(match_size, nomatch_size))
+    print(f"matched parameter sets: {match_size}, and no matched: {nomatch_size}")
 
     my_model_dict.update(part_load)
     model.load_state_dict(my_model_dict)
@@ -71,7 +71,7 @@ def load_checkpoint_old(model_load_path, model):
         else:
             nomatch_size += 1
 
-    print("matched parameter sets: {}, and no matched: {}".format(match_size, nomatch_size))
+    print(f"matched parameter sets: {match_size}, and no matched: {nomatch_size}")
 
     my_model_dict.update(part_load)
     model.load_state_dict(my_model_dict)
@@ -93,7 +93,7 @@ def load_checkpoint_1b1(model_load_path, model):
         key_ = pre_weight_list[idx]
         key_2 = my_model_dict_list[idx]
         value_ = pre_weight[key_]
-        if my_model_dict[key_2].shape == pre_weight[key_].shape:
+        if my_model_dict[key_2].shape == value_.shape:
             # print("loading ", k)
             match_size += 1
             part_load[key_2] = value_
@@ -102,7 +102,7 @@ def load_checkpoint_1b1(model_load_path, model):
             print(key_2)
             nomatch_size += 1
 
-    print("matched parameter sets: {}, and no matched: {}".format(match_size, nomatch_size))
+    print(f"matched parameter sets: {match_size}, and no matched: {nomatch_size}")
 
     my_model_dict.update(part_load)
     model.load_state_dict(my_model_dict)

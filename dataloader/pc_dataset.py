@@ -114,12 +114,10 @@ class Waymo(data.Dataset):
         self.im_idx = []
         if imageset =='train':
             with open('/nvme/yuenan/train-0-31.txt', 'r') as f:
-                for line in f.readlines():
-                    self.im_idx.append(line.strip())
+                self.im_idx.extend(line.strip() for line in f.readlines())
         else:
             with open('/nvme/yuenan/val-0-7.txt', 'r') as f: #val-0-7-label.txt
-                for line in f.readlines():
-                    self.im_idx.append(line.strip())
+                self.im_idx.extend(line.strip() for line in f.readlines())
 
     def __len__(self):
         'Denotes the total number of samples'
@@ -136,7 +134,7 @@ class Waymo(data.Dataset):
             intensity = np.load(self.im_idx[index])[:, 1].reshape((-1,1))
             intensity = np.tanh(intensity) 
             #elongation = np.load(self.im_idx[index])[:, 2].reshape((-1,1))
-            extra_data = intensity 
+            extra_data = intensity
         if 'no_label' in self.im_idx[index]:
             annotated_data = np.load(self.im_idx[index].replace('test/', 'test_nolabel/').replace('train/', 'train_nolabel/').replace('no_label_point_clouds/', 'train_nolabel/')).reshape((-1,1)) #
             #annotated_data = np.expand_dims(np.zeros_like(raw_data[:, 0], dtype=int), axis=1)
@@ -144,7 +142,7 @@ class Waymo(data.Dataset):
             #annotated_data = np.load(self.im_idx[index].replace('valid/', 'valid_nolabel/')).reshape((-1,1)) #
             base_path = '/home/sysuser/cylinder3d/val_submit'#+self.imageset
             frame_id = self.im_idx[index].split('/')[-1]
-            annotated_data = np.load(base_path+'/first/'+frame_id).reshape((-1, 1))
+            annotated_data = np.load(f'{base_path}/first/{frame_id}').reshape((-1, 1))
         else:
             #annotated_data = np.fromfile(self.im_idx[index].replace('velodyne', 'labels')[:-3] + 'label',
             #                             dtype=np.uint32).reshape((-1, 1))
@@ -153,18 +151,17 @@ class Waymo(data.Dataset):
             #annotated_data = np.expand_dims(np.zeros_like(raw_data[:, 0], dtype=int), axis=1)
 
         if use_sec_return:
-            if True: #self.imageset == 'train': #and 'test' not in self.im_idx[index]:
-                sec_path = self.im_idx[index].replace('first', 'second') #'validation%2F', 'validation_').replace('training%2F', 'training_')
-                #sec_path = sec_path.replace('labels_', 'labels')
-                sec_data = np.load(sec_path)[:, 3:6].reshape((-1,3))
-                #len_first = raw_data.shape[0]
-                assert len_first != 3
-                raw_data = np.concatenate((raw_data, sec_data), axis=0)
-                sec_annotated_data = np.load(sec_path)[:, -1].reshape((-1,1))
-                annotated_data = np.concatenate((annotated_data, sec_annotated_data), axis=0)
-                sec_intensity = np.load(sec_path)[:, 1].reshape((-1,1))
-                sec_intensity = np.tanh(sec_intensity)
-                extra_data = np.concatenate((intensity, sec_intensity), axis=0)
+            sec_path = self.im_idx[index].replace('first', 'second') #'validation%2F', 'validation_').replace('training%2F', 'training_')
+            #sec_path = sec_path.replace('labels_', 'labels')
+            sec_data = np.load(sec_path)[:, 3:6].reshape((-1,3))
+            #len_first = raw_data.shape[0]
+            assert len_first != 3
+            raw_data = np.concatenate((raw_data, sec_data), axis=0)
+            sec_annotated_data = np.load(sec_path)[:, -1].reshape((-1,1))
+            annotated_data = np.concatenate((annotated_data, sec_annotated_data), axis=0)
+            sec_intensity = np.load(sec_path)[:, 1].reshape((-1,1))
+            sec_intensity = np.tanh(sec_intensity)
+            extra_data = np.concatenate((intensity, sec_intensity), axis=0)
         data_tuple = (raw_data[:, :3], annotated_data.astype(np.uint8))
         data_tuple += (extra_data,)
         if use_sec_return:
@@ -283,7 +280,7 @@ class SemKITTI_sk_multiscan(data.Dataset):
         self.times = []
         self.poses = []
 
-        for seq in range(0, 22):
+        for seq in range(22):
             seq_folder = join(self.data_path, str(seq).zfill(2))
 
             # Read Calib
@@ -306,20 +303,18 @@ class SemKITTI_sk_multiscan(data.Dataset):
         """
         calib = {}
 
-        calib_file = open(filename)
-        for line in calib_file:
-            key, content = line.strip().split(":")
-            values = [float(v) for v in content.strip().split()]
+        with open(filename) as calib_file:
+            for line in calib_file:
+                key, content = line.strip().split(":")
+                values = [float(v) for v in content.strip().split()]
 
-            pose = np.zeros((4, 4))
-            pose[0, 0:4] = values[0:4]
-            pose[1, 0:4] = values[4:8]
-            pose[2, 0:4] = values[8:12]
-            pose[3, 3] = 1.0
+                pose = np.zeros((4, 4))
+                pose[0, 0:4] = values[:4]
+                pose[1, 0:4] = values[4:8]
+                pose[2, 0:4] = values[8:12]
+                pose[3, 3] = 1.0
 
-            calib[key] = pose
-
-        calib_file.close()
+                calib[key] = pose
 
         return calib
 
@@ -342,7 +337,7 @@ class SemKITTI_sk_multiscan(data.Dataset):
             values = [float(v) for v in line.strip().split()]
 
             pose = np.zeros((4, 4))
-            pose[0, 0:4] = values[0:4]
+            pose[0, 0:4] = values[:4]
             pose[1, 0:4] = values[4:8]
             pose[2, 0:4] = values[8:12]
             pose[3, 3] = 1.0
@@ -422,17 +417,16 @@ class SemKITTI_sk_multiscan(data.Dataset):
 def get_SemKITTI_label_name(label_mapping):
     with open(label_mapping, 'r') as stream:
         semkittiyaml = yaml.safe_load(stream)
-    SemKITTI_label_name = dict()
-    for i in sorted(list(semkittiyaml['learning_map'].keys()))[::-1]:
-        SemKITTI_label_name[semkittiyaml['learning_map'][i]] = semkittiyaml['labels'][i]
-
-    return SemKITTI_label_name
+    return {
+        semkittiyaml['learning_map'][i]: semkittiyaml['labels'][i]
+        for i in sorted(list(semkittiyaml['learning_map'].keys()))[::-1]
+    }
 
 
 def get_nuScenes_label_name(label_mapping):
     with open(label_mapping, 'r') as stream:
         nuScenesyaml = yaml.safe_load(stream)
-    nuScenes_label_name = dict()
+    nuScenes_label_name = {}
     for i in sorted(list(nuScenesyaml['learning_map'].keys()))[::-1]:
         val_ = nuScenesyaml['learning_map'][i]
         nuScenes_label_name[val_] = nuScenesyaml['labels_16'][val_]
