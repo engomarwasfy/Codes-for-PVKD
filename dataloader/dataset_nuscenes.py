@@ -47,7 +47,10 @@ class cylinder_dataset_nuscenes(data.Dataset):
         return len(self.point_cloud_dataset)
 
     def __getitem__(self, index):
-        data = self.point_cloud_dataset[index]
+        try:
+            data = self.point_cloud_dataset[index]
+        except: 
+            return self.__getitem__(1)
         if len(data) == 2:
             xyz, labels = data
         elif len(data) == 3:
