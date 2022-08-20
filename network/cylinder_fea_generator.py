@@ -65,7 +65,7 @@ class cylinder_fea(nn.Module):
         pt_num = cat_pt_ind.shape[0]
 
         # shuffle the data
-        shuffled_ind = torch.randperm(pt_num, device=cur_dev)
+        shuffled_ind = torch.randperm(pt_num)
         cat_pt_fea = cat_pt_fea[shuffled_ind, :]
         cat_pt_ind = cat_pt_ind[shuffled_ind, :]
 
