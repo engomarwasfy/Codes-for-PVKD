@@ -13,6 +13,7 @@ import torch.optim as optim
 from pytorch_lightning.lite import LightningLite
 from tqdm import tqdm
 
+from dataloader.lightingDataloader import lightingDataloader
 from utils.metric_util import per_class_iu, fast_hist_crop
 from dataloader.pc_dataset import get_SemKITTI_label_name
 from builder import data_builder, model_builder, loss_builder
@@ -20,150 +21,108 @@ from config.config import load_config_data
 
 from utils.load_save_util import load_checkpoint
 from pytorch_lightning import *
-
+import torch.nn.functional as F
 import warnings
+import pytorch_lightning as pl
 
 warnings.filterwarnings("ignore")
-class Lite(LightningLite):
-    def run(self, args):
-        pytorch_device = torch.device('cuda:0')
-        config_path = args.config_path
-        configs = load_config_data(config_path)
-        dataset_config = configs['dataset_params']
-        train_dataloader_config = configs['train_data_loader']
-        val_dataloader_config = configs['val_data_loader']
-        val_batch_size = val_dataloader_config['batch_size']
-        train_batch_size = train_dataloader_config['batch_size']
-        model_config = configs['model_params']
-        train_hypers = configs['train_params']
-        grid_size = model_config['output_shape']
-        num_class = model_config['num_class']
-        ignore_label = dataset_config['ignore_label']
-        model_load_path = train_hypers['model_load_path']
-        model_save_path = train_hypers['model_save_path']
-        SemKITTI_label_name = get_SemKITTI_label_name(dataset_config["label_mapping"])
-        unique_label = np.asarray(sorted(list(SemKITTI_label_name.keys())))[1:] - 1
-        unique_label_str = [SemKITTI_label_name[x] for x in unique_label + 1]
-        my_model = model_builder.build(model_config)
-        if os.path.exists(model_load_path):
-            my_model = load_checkpoint(model_load_path, my_model)
+class Lite(pl.LightningModule):
+    def __init__(self):
+        super().__init__()
+        self.config_path = args.config_path
+        self.configs = load_config_data(self.config_path)
+        self.dataset_config = self.configs['dataset_params']
+        self.model_config = self.configs['model_params']
+        self.train_hypers = self.configs['train_params']
+        self.grid_size = self.model_config['output_shape']
+        self.num_class = self.model_config['num_class']
+        self.ignore_label = self.dataset_config['ignore_label']
+        self.model_load_path = self.train_hypers['model_load_path']
+        self.model_save_path = self.train_hypers['model_save_path']
+        self.my_model = model_builder.build(self.model_config)
+        self.SemKITTI_label_name = get_SemKITTI_label_name(self.dataset_config["label_mapping"])
+        self.unique_label = np.asarray(sorted(list(self.SemKITTI_label_name.keys())))[1:] - 1
+        self.unique_label_str = [self.SemKITTI_label_name[x] for x in self.unique_label]
+        self.hist_list = []
+        self.val_loss_list = []
+        self.loss_list=[]
+        if os.path.exists(self.model_load_path):
+            self.my_model = load_checkpoint(self.model_load_path, self.my_model)
+    def training_step(self, batch , batch_idx):
+        _, train_vox_label, train_grid, _, train_pt_fea = batch
+        train_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor) for i in  train_pt_fea]
+        # train_grid_ten = [torch.from_numpy(i[:,:2]).to(pytorch_device) for i in train_grid]
+        train_vox_ten = [torch.from_numpy(i) for i in train_grid]
+        point_label_tensor = train_vox_label.type(torch.LongTensor)
+        # forward + backward + optimize
+        outputs = self.my_model(train_pt_fea_ten, train_vox_ten, point_label_tensor.shape[0])  # train_batch_size)
+        loss = self.lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=0) + self.loss_func(
+            outputs, point_label_tensor)
+        self.loss_list.append(loss.item())
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+    def validation_step(self,batch, batch_idx):
+        _, val_vox_label, val_grid, val_pt_labs, val_pt_fea = batch
+        val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor) for i in
+                          val_pt_fea]
+        val_grid_ten = [torch.from_numpy(i) for i in val_grid]
+        val_label_tensor = val_vox_label.type(torch.LongTensor)
 
-        #my_model.to(pytorch_device)
-        optimizer = optim.Adam(my_model.parameters(), lr=train_hypers["learning_rate"])
-        my_model, optimizer = self.setup(my_model, optimizer)  # Scale your model / optimizers
+        predict_labels = self.my_model(val_pt_fea_ten, val_grid_ten, val_label_tensor.shape[0])  # val_batch_size)
+        # aux_loss = loss_fun(aux_outputs, point_label_tensor)
+        loss = self.lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
+                              ignore=0) + self.loss_func(predict_labels.detach(), val_label_tensor)
 
-        loss_func, lovasz_softmax = loss_builder.build(wce=True, lovasz=True,
-                                                       num_class=num_class, ignore_label=ignore_label)
+        self.val_loss_list.append(loss.detach())
 
-        train_dataset_loader, val_dataset_loader = data_builder.build(dataset_config,
-                                                                      train_dataloader_config,
-                                                                      val_dataloader_config,
-                                                                      grid_size=grid_size)
-        train_dataset_loader = self.setup_dataloaders(train_dataset_loader)  # Scale your dataloaders
-        val_dataset_loader = self.setup_dataloaders(val_dataset_loader)  # Scale your dataloaders
+        '''
+        predict_labels = torch.argmax(predict_labels, dim=1)
+        predict_labels = predict_labels.detach()
+        for count, i_val_grid in enumerate(val_grid):
+            self.hist_list.append(fast_hist_crop(predict_labels[
+                                                count, val_grid[count][:, 0], val_grid[count][:, 1],
+                                                val_grid[count][:, 2]], val_pt_labs[count],
+                                            self.unique_label))
+        
+        iou = per_class_iu(sum(self.hist_list))
+        print('Validation per class iou: ')
+        for class_name, class_iou in zip(self.unique_label_str, iou):
+            print('%s : %.2f%%' % (class_name, class_iou * 100))
+        val_miou = np.nanmean(iou) * 100
+        
+        del val_vox_label, val_grid, val_pt_fea, val_grid_ten
 
+        # save model if performance is improved
+        if self.best_val_miou < val_miou:
+            self.best_val_miou = val_miou
+            torch.save(self.my_model.state_dict(), self.model_save_path)
 
-    # training
-        epoch = 0
-        best_val_miou = 0
-        my_model.train()
-        global_iter = 0
-        check_iter = train_hypers['eval_every_n_steps']
+        print('Current val miou is %.3f while the best val miou is %.3f' %
+              (val_miou, self.best_val_miou))
+        print('Current val loss is %.3f' %
+              (np.mean(self.val_loss_list)))
+        self.log("val_loss", loss)
+        '''
 
-        while epoch < train_hypers['max_num_epochs']:
-            loss_list = []
-            pbar = tqdm(total=len(train_dataset_loader))
-            # time.sleep(10)
-            # lr_scheduler.step(epoch)
-            for i_iter, (_, train_vox_label, train_grid, _, train_pt_fea) in enumerate(train_dataset_loader):
-                if global_iter % check_iter == 0 and epoch > 0:
-                    my_model.eval()
-                    hist_list = []
-                    val_loss_list = []
-                    with torch.no_grad():
-                        for i_iter_val, (_, val_vox_label, val_grid, val_pt_labs, val_pt_fea) in enumerate(
-                                val_dataset_loader):
-
-                            val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device)    for i in
-                                              val_pt_fea]
-                            val_grid_ten = [torch.from_numpy(i).to(pytorch_device)    for i in val_grid]
-                            val_label_tensor = val_vox_label.type(torch.LongTensor)
-
-                            predict_labels = my_model(val_pt_fea_ten, val_grid_ten, val_label_tensor.shape[0])#val_batch_size)
-                            # aux_loss = loss_fun(aux_outputs, point_label_tensor)
-                            loss = lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
-                                                  ignore=0) + loss_func(predict_labels.detach(), val_label_tensor)
-                            predict_labels = torch.argmax(predict_labels, dim=1)
-                            predict_labels = predict_labels.detach()
-                            for count, i_val_grid in enumerate(val_grid):
-                                hist_list.append(fast_hist_crop(predict_labels[
-                                                                    count, val_grid[count][:, 0], val_grid[count][:, 1],
-                                                                    val_grid[count][:, 2]], val_pt_labs[count],
-                                                                unique_label))
-                            val_loss_list.append(loss.detach())
-                    my_model.train()
-                    iou = per_class_iu(sum(hist_list))
-                    print('Validation per class iou: ')
-                    for class_name, class_iou in zip(unique_label_str, iou):
-                        print('%s : %.2f%%' % (class_name, class_iou * 100))
-                    val_miou = np.nanmean(iou) * 100
-                    del val_vox_label, val_grid, val_pt_fea, val_grid_ten
-
-                    # save model if performance is improved
-                    if best_val_miou < val_miou:
-                        best_val_miou = val_miou
-                        torch.save(my_model.state_dict(), model_save_path)
-
-                    print('Current val miou is %.3f while the best val miou is %.3f' %
-                          (val_miou, best_val_miou))
-                    print('Current val loss is %.3f' %
-                          (np.mean(val_loss_list)))
-
-                train_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device)                     for i in train_pt_fea]
-                # train_grid_ten = [torch.from_numpy(i[:,:2]).to(pytorch_device) for i in train_grid]
-                train_vox_ten = [torch.from_numpy(i).to(pytorch_device)    for i in train_grid]
-                point_label_tensor = train_vox_label.type(torch.LongTensor).to(pytorch_device)
-
-                # forward + backward + optimize
-                outputs = my_model(train_pt_fea_ten, train_vox_ten, point_label_tensor.shape[0] )#train_batch_size)
-                loss = lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=0) + loss_func(
-                    outputs, point_label_tensor)
-                #loss.backward()
-                self.backward(loss)  # instead of loss.backward()
-                optimizer.step()
-                loss_list.append(loss.item())
-
-                if global_iter % 1000 == 0:
-                    if len(loss_list) > 0:
-                        print('epoch %d iter %5d, loss: %.3f\n' %
-                              (epoch, i_iter, np.mean(loss_list)))
-                    else:
-                        print('loss error')
-
-                optimizer.zero_grad()
-                pbar.update(1)
-                global_iter += 1
-                if global_iter % check_iter == 0:
-                    if len(loss_list) > 0:
-                        print('epoch %d iter %5d, loss: %.3f\n' %
-                              (epoch, i_iter, np.mean(loss_list)))
-                    else:
-                        print('loss error')
-            pbar.close()
-            epoch += 1
-
-
-
-
+    def configure_optimizers(self):
+        optimizer = optim.Adam(self.my_model.parameters(), lr=self.train_hypers["learning_rate"])
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
+        self.loss_func, self.lovasz_softmax = loss_builder.build(wce=True, lovasz=True,
+                                                       num_class=self.num_class, ignore_label=self.ignore_label)
+        return [optimizer], [lr_scheduler]
 def main(args):
-    Lite(  accelerator="cuda" ).run(args)
-
+   # Lite(  accelerator="cuda" ).run(args)
+   train_loader =lightingDataloader(args.config_path)
+   trainer = pl.Trainer(max_epochs=40, gpus=1, accelerator="cuda", precision=16)
+   model = Lite()
+   trainer.fit(model, train_dataloaders=train_loader)
 
 
 
 
 if __name__ == '__main__':
     # Training settings
+
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-y', '--config_path', default='config/semantickitti.yaml')
     args = parser.parse_args()
