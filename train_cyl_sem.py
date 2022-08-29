@@ -48,12 +48,12 @@ class Lite(pl.LightningModule):
         self.loss_list=[]
         if os.path.exists(self.model_load_path):
             self.my_model = load_checkpoint(self.model_load_path, self.my_model)
-    def training_step(self, batch , batch_idx):
+    def training_step(self, batch  ,batch_idx):
         _, train_vox_label, train_grid, _, train_pt_fea = batch
         train_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor) for i in  train_pt_fea]
         # train_grid_ten = [torch.from_numpy(i[:,:2]).to(pytorch_device) for i in train_grid]
-        train_vox_ten = [torch.from_numpy(i) for i in train_grid]
-        point_label_tensor = train_vox_label.type(torch.LongTensor)
+        train_vox_ten = [torch.from_numpy(i).type(torch.FloatTensor) for i in train_grid]
+        point_label_tensor = train_vox_label.type(torch.LongTensor).type_as(train_vox_label)
         # forward + backward + optimize
         outputs = self.my_model(train_pt_fea_ten, train_vox_ten, point_label_tensor.shape[0])  # train_batch_size)
         loss = self.lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=0) + self.loss_func(
@@ -61,19 +61,24 @@ class Lite(pl.LightningModule):
         self.loss_list.append(loss.item())
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
-    def validation_step(self,batch, batch_idx):
+    def validation_step(self,batch,batch_idx):
         _, val_vox_label, val_grid, val_pt_labs, val_pt_fea = batch
+
         val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor) for i in
                           val_pt_fea]
-        val_grid_ten = [torch.from_numpy(i) for i in val_grid]
+        val_grid_ten = [torch.from_numpy(i).type(torch.FloatTensor) for i in val_grid]
         val_label_tensor = val_vox_label.type(torch.LongTensor)
 
         predict_labels = self.my_model(val_pt_fea_ten, val_grid_ten, val_label_tensor.shape[0])  # val_batch_size)
+        cur_dev = predict_labels[0].get_device()
+        if (cur_dev < 0):
+            cur_dev = 0
         # aux_loss = loss_fun(aux_outputs, point_label_tensor)
-        loss = self.lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
-                              ignore=0) + self.loss_func(predict_labels.detach(), val_label_tensor)
-
-        self.val_loss_list.append(loss.detach())
+        loss = self.lovasz_softmax(torch.nn.functional.softmax(predict_labels).to(cur_dev), val_label_tensor.to(cur_dev),ignore=0) \
+               + self.loss_func(predict_labels.to(cur_dev), val_label_tensor.to(cur_dev))\
+               + self.loss_func(predict_labels.to(cur_dev), val_label_tensor.to(cur_dev))
+        #removed ignore 0
+        self.val_loss_list.append(loss)
 
         '''
         predict_labels = torch.argmax(predict_labels, dim=1)
@@ -101,8 +106,8 @@ class Lite(pl.LightningModule):
               (val_miou, self.best_val_miou))
         print('Current val loss is %.3f' %
               (np.mean(self.val_loss_list)))
-        self.log("val_loss", loss)
         '''
+        self.log("val_loss", loss, on_step = True, on_epoch = True, prog_bar = True, logger = True)
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.my_model.parameters(), lr=self.train_hypers["learning_rate"])
