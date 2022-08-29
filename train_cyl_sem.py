@@ -118,7 +118,7 @@ class Lite(pl.LightningModule):
 def main(args):
    # Lite(  accelerator="cuda" ).run(args)
    train_loader =lightingDataloader(args.config_path)
-   trainer = pl.Trainer(max_epochs=40, gpus=1, accelerator="cuda", precision=16)
+   trainer = pl.Trainer(max_epochs=40, accelerator="cuda")
    model = Lite()
    trainer.fit(model, train_dataloaders=train_loader)
 
