@@ -10,7 +10,6 @@ import sys
 import numpy as np
 import torch
 import torch.optim as optim
-from pytorch_lightning.lite import LightningLite
 from tqdm import tqdm
 
 from dataloader.lightingDataloader import lightingDataloader
