@@ -4,6 +4,7 @@
 
 from torch import nn
 import torch
+import network.u2net as u2net
 
 REGISTERED_MODELS_CLASSES = {}
 
@@ -41,12 +42,16 @@ class cylinder_asym(nn.Module):
 
     def forward(self, train_pt_fea_ten, train_vox_ten, batch_size, val_grid=None, voting_num=4, use_tta=False):
         coords, features_3d = self.cylinder_3d_generator(train_pt_fea_ten, train_vox_ten)
-
         if use_tta:
             batch_size *= voting_num
-
+        '''
+        mapping = torch.zeros(batch_size,self.sparse_shape[0],self.sparse_shape[1],self.sparse_shape[2],features_3d.shape[1])
+        print(mapping.shape)
+        for i in range (coords.shape[0] ):
+            mapping[coords[i,0],coords[i,1],coords[i,2],coords[i,3],:] = features_3d[i,:]
+        '''
         spatial_features = self.cylinder_3d_spconv_seg(features_3d, coords, batch_size)
-
+        #spatial_features =self.cylinder_3d_spconv_seg(mapping)
         if use_tta:
             features_ori = torch.split(spatial_features, 1, dim=0)
             fused_predict = features_ori[0][0, :, val_grid[0][:, 0], val_grid[0][:, 1], val_grid[0][:, 2]]

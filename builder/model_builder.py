@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 # author: Xinge
-# @file: model_builder.py 
-
+# @file: model_builder.py
+from network import u2net_refactor as u2net
 from network.cylinder_spconv_3d import get_model_class
 from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv
 from network.cylinder_fea_generator import cylinder_fea
@@ -30,7 +30,8 @@ def build(model_config):
 
     model = get_model_class(model_config["model_architecture"])(
         cylin_model=cy_fea_net,
-        segmentator_spconv=cylinder_3d_spconv_seg,
+      #  segmentator_spconv=cylinder_3d_spconv_seg,
+         segmentator_spconv= u2net.U2NET_full(),
         sparse_shape=output_shape
     )
 
