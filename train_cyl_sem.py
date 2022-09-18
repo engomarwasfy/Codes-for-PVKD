@@ -116,12 +116,10 @@ class Lite(pl.LightningModule):
         return [optimizer], [lr_scheduler]
 def main(args):
    # Lite(  accelerator="cuda" ).run(args)
-   train_loader =lightingDataloader(args.config_path)
-   trainer = pl.Trainer(max_epochs=40, accelerator="cuda")
    model = Lite()
-   trainer.fit(model, train_dataloaders=train_loader)
-
-
+   data_loader =lightingDataloader(args.config_path)
+   trainer = pl.Trainer(max_epochs=40, accelerator="cuda")
+   trainer.fit(model, train_dataloaders=data_loader.train_dataloader(), val_dataloaders=data_loader.val_dataloader())
 
 
 if __name__ == '__main__':

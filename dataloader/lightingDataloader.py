@@ -19,7 +19,7 @@ class lightingDataloader(pl.LightningDataModule):
         self.SemKITTI_label_name = get_SemKITTI_label_name(self.dataset_config["label_mapping"])
         self.unique_label = np.asarray(sorted(list(self.SemKITTI_label_name.keys())))[1:] - 1
         self.unique_label_str = [self.SemKITTI_label_name[x] for x in self.unique_label]
-        self.setup(None)
+        self.setup(stage="fit")
 
     def setup(self,stage):
         self.train_dataset_loader, self.val_dataset_loader = data_builder.build(self.dataset_config,

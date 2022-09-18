@@ -4,8 +4,8 @@ format_version: 4
 ###################
 ## Model options
 model_params:
-  model_architecture: "cylinder_asym"
-
+ # model_architecture: "cylinder_asym"
+  model_architecture: "spconv_wrapper"
   output_shape:
     - 480
     - 360

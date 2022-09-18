@@ -1,53 +1,42 @@
 # -*- coding:utf-8 -*-
 # author: Xinge
-# @file: segmentator_3d_asymm_spconv.py
+# @file: spconv_segmentor.py
 
 import numpy as np
-import spconv.pytorch as spconv
 import torch
-from spconv.pytorch import ConvAlgo
-
+import torchsparse
+import torchsparse.nn as spnn
+from torchsparse import PointTensor, SparseTensor
 from torch import nn
 
 
 def conv3d(in_planes, out_planes, stride=1,dialate=1, indice_key=None):
-    return spconv.SubMConv3d(in_planes, out_planes, kernel_size=(3, 3, 3), stride=stride,
-                             padding=1, bias=False, indice_key=indice_key,dilation=dialate,algo=ConvAlgo.Native)
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(3,3,3), stride=stride, dilation=dialate)
 def conv3x3(in_planes, out_planes, stride=1,dialate=1, indice_key=None):
-    return spconv.SubMConv3d(in_planes, out_planes, kernel_size=3, stride=stride,
-                             padding=1, bias=False, indice_key=indice_key,dilation=dialate,algo=ConvAlgo.Native)
-
-
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(3, 3, 3), stride=stride, dilation=dialate)
 
 
 def conv1x3(in_planes, out_planes, stride=1,dialate=1,indice_key=None):
-    return spconv.SubMConv3d(in_planes, out_planes, kernel_size=(1, 3, 3), stride=stride,
-                             padding=(0, 1, 1), bias=False, indice_key=indice_key,dilation=dialate,algo=ConvAlgo.Native)
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(1, 3, 3), stride=stride, dilation=dialate)
 
 
 def conv1x1x3(in_planes, out_planes, stride=1,dialate=1, indice_key=None):
-    return spconv.SubMConv3d(in_planes, out_planes, kernel_size=(1, 1, 3), stride=stride,
-                             padding=(0, 0, 1), bias=False, indice_key=indice_key,dilation=dialate,algo=ConvAlgo.Native)
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(1, 1, 3), stride=stride, dilation=dialate)
 
 
 def conv1x3x1(in_planes, out_planes, stride=1,dialate=1, indice_key=None):
-    return spconv.SubMConv3d(in_planes, out_planes, kernel_size=(1, 3, 1), stride=stride,
-                             padding=(0, 1, 0), bias=False, indice_key=indice_key,dilation=dialate,algo=ConvAlgo.Native)
-
+            return spnn.Conv3d(in_planes, out_planes, kernel_size=(1, 3, 1), stride=stride, dilation=dialate)
 
 def conv3x1x1(in_planes, out_planes, stride=1,dialate=1 ,indice_key=None):
-    return spconv.SubMConv3d(in_planes, out_planes, kernel_size=(3, 1, 1), stride=stride,
-                             padding=(1, 0, 0), bias=False, indice_key=indice_key,dilation=dialate,algo=ConvAlgo.Native)
+  return spnn.Conv3d(in_planes, out_planes, kernel_size=(3, 1, 1), stride=stride, dilation=dialate)
 
 
 def conv3x1(in_planes, out_planes, stride=1,dialate=1 ,indice_key=None):
-    return spconv.SubMConv3d(in_planes, out_planes,kernel_size=(3, 1, 3), stride=stride,
-                             padding=(1, 0, 1), bias=False, indice_key=indice_key,dilation=dialate,algo=ConvAlgo.Native)
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(3, 1, 1), stride=stride, dilation=dialate)
 
 
 def conv1x1(in_planes, out_planes, stride=1,dialate=1 ,indice_key=None):
-    return spconv.SubMConv3d(in_planes, out_planes,kernel_size=1, stride=stride,
-                             padding=1, bias=False, indice_key=indice_key,dilation=dialate,algo=ConvAlgo.Native)
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(1, 1, 1), stride=stride, dilation=dialate)
 
 
 class ResContextBlock(nn.Module):
@@ -123,11 +112,11 @@ class ResBlock(nn.Module):
 
         if pooling:
             if height_pooling:
-                self.pool = spconv.SparseConv3d(out_filters, out_filters, dilation=dialate ,kernel_size=3, stride=2,
-                                                padding=1, indice_key=indice_key, bias=False,algo=ConvAlgo.Native)
+                self.pool = spnn.Conv3d(out_filters, out_filters, dilation=dialate ,kernel_size=3, stride=2,
+                                                 bias=False)
             else:
-                self.pool = spconv.SparseConv3d(out_filters, out_filters, kernel_size=3, dilation=dialate ,stride=(2, 2, 1),
-                                                padding=1, indice_key=indice_key, bias=False,algo=ConvAlgo.Native)
+                self.pool = spnn.Conv3d(out_filters, out_filters, kernel_size=3, dilation=dialate ,stride=(2, 2, 1),
+                                                 bias=False)
         self.weight_initialization()
 
     def weight_initialization(self):
@@ -183,9 +172,8 @@ class UpBlock(nn.Module):
         self.bn3 = nn.BatchNorm1d(out_filters)
         # self.dropout3 = nn.Dropout3d(p=dropout_rate)
 
-        self.up_subm = spconv.SparseInverseConv3d(out_filters, out_filters, kernel_size=3,indice_key=up_key,
-                                                  bias=False,algo=ConvAlgo.Native)
-
+        self.up_subm = spnn.Conv3d (out_filters, out_filters, kernel_size=3,
+                                                  bias=False)
         self.weight_initialization()
 
     def weight_initialization(self):
@@ -251,13 +239,13 @@ class ReconBlock(nn.Module):
         return shortcut
 
 
-class Asymm_3d_spconv(nn.Module):
+class Asymm_3d_torchsparse(nn.Module):
     def __init__(self,
                  output_shape,
                  use_norm=True,
                  num_input_features=128,
                  nclasses=20, n_height=32, strict=False, init_size=16):
-        super(Asymm_3d_spconv, self).__init__()
+        super(Asymm_3d_torchsparse, self).__init__()
         self.nclasses = nclasses
         self.nheight = n_height
         self.strict = False
@@ -282,16 +270,15 @@ class Asymm_3d_spconv(nn.Module):
 
         self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key="recon")
 
-        self.logits = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
+        self.logits = spnn.Conv3d(4 * init_size, nclasses, kernel_size=3, stride=1)
 
     def forward(self, voxel_features, coors, batch_size):
         # x = x.contiguous()
         coors = coors.int()
         # import pdb
         # pdb.set_trace()
-        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
-                                      batch_size)
+
+        ret =SparseTensor(voxel_features, coors, self.sparse_shape, batch_size)
         ret = self.downCntx(ret)
         down1c, down1b = self.resBlock2(ret)
         down2c, down2b = self.resBlock3(down1c)

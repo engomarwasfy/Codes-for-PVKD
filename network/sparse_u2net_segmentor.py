@@ -8,7 +8,7 @@ import math
 
 __all__ = ['U2NET_full', 'U2NET_lite']
 
-from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv, ResContextBlock, UpBlock, ReconBlock, ResBlock
+from network.spconv_segmentor import Asymm_3d_spconv, ResContextBlock, UpBlock, ReconBlock, ResBlock
 
 
 def conv3d(in_planes, out_planes, stride=1, padding=0,dilation=1,indice_key=None):

@@ -121,7 +121,7 @@ learning_map:
   32: 8     # "motorcyclist"
   40: 9     # "road"
   44: 10    # "parking"
-  48: 11    # "sidewalk"
+  48: 11    # "cylinder_asymsidewalk"
   49: 12    # "other-ground"
   50: 13    # "building"
   51: 14    # "fence"
