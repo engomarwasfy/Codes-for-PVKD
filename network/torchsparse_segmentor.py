@@ -278,7 +278,7 @@ class Asymm_3d_torchsparse(nn.Module):
         # import pdb
         # pdb.set_trace()
 
-        ret =SparseTensor(voxel_features, coors, self.sparse_shape, batch_size)
+        ret =SparseTensor(voxel_features, coors, self.sparse_shape)
         ret = self.downCntx(ret)
         down1c, down1b = self.resBlock2(ret)
         down2c, down2b = self.resBlock3(down1c)
