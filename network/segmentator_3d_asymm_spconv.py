@@ -545,13 +545,13 @@ class U2NET(nn.Module):
         self.nheight = n_height
         self.strict = False
         self.encoder1 = encoder1(output_shape,num_input_features, nclasses, init_size)
-        self.encoder2 = encoder2(output_shape,4*init_size, nclasses, init_size)
-        self.encoder3 = encoder3(output_shape,8*init_size, nclasses, init_size)
-        self.encoder4 = encoder4(output_shape,16*init_size, nclasses, init_size)
-        self.encoder5 = encoder5(output_shape,32*init_size, nclasses, init_size)
-        self.decoder1 = encoder4(output_shape,64*init_size, nclasses, init_size)
-        self.decoder2 = encoder3(output_shape,48*init_size, nclasses, init_size)
-        self.decoder3 = encoder2(output_shape,24*init_size, nclasses, init_size)
+        self.encoder2 = encoder2(list(map(lambda x: x/1, output_shape)), 4 * init_size, nclasses, init_size)
+        self.encoder3 = encoder3(list(map(lambda x: x/1, output_shape)),8*init_size, nclasses, init_size)
+        self.encoder4 = encoder4(list(map(lambda x: x/1, output_shape)),16*init_size, nclasses, init_size)
+        self.encoder5 = encoder5(list(map(lambda x: x/1, output_shape)),32*init_size, nclasses, init_size)
+        self.decoder1 = encoder4(list(map(lambda x: x/1, output_shape)),64*init_size, nclasses, init_size)
+        self.decoder2 = encoder3(list(map(lambda x: x/1, output_shape)),48*init_size, nclasses, init_size)
+        self.decoder3 = encoder2(list(map(lambda x: x/1, output_shape)),24*init_size, nclasses, init_size)
         self.decoder4 = encoder1(output_shape,12*init_size, nclasses, init_size)
 
         self.logits = spconv.SubMConv3d(60 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
@@ -571,7 +571,15 @@ class U2NET(nn.Module):
        coors2 = coors.int()
        sparseTensorOutput=spconv.SparseConvTensor(output, coors2, self.sparse_shape,
                                batch_size)
+       logits1= self.decoder1.logits(spconv.SparseConvTensor(y1.features, coors2, self.sparse_shape,batch_size))
+       logits2= self.decoder2.logits(spconv.SparseConvTensor(y2.features, coors2, self.sparse_shape,  batch_size))
+       logits3= self.decoder3.logits(spconv.SparseConvTensor(y3.features, coors2, self.sparse_shape,  batch_size))
+       logits4= self.decoder4.logits(spconv.SparseConvTensor(y4.features, coors2, self.sparse_shape,  batch_size))
        logits = self.logits(sparseTensorOutput)
 
+       y1= logits1.dense()
+       y2= logits2.dense()
+       y3= logits3.dense()
+       y4= logits4.dense()
        y= logits.dense()
-       return y
+       return y,y1,y2,y3,y4

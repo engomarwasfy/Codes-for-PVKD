@@ -55,8 +55,10 @@ class Lite(pl.LightningModule):
         point_label_tensor = train_vox_label.type(torch.LongTensor).type_as(train_vox_label)
         # forward + backward + optimize
         outputs = self.my_model(train_pt_fea_ten, train_vox_ten, point_label_tensor.shape[0])  # train_batch_size)
-        loss = self.lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=0) + self.loss_func(
-            outputs, point_label_tensor)
+        loss=0
+        for output in outputs:
+            loss += self.lovasz_softmax(torch.nn.functional.softmax(output), point_label_tensor, ignore=0) + self.loss_func(
+            output, point_label_tensor)
         self.loss_list.append(loss.item())
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
@@ -73,9 +75,9 @@ class Lite(pl.LightningModule):
         if (cur_dev < 0):
             cur_dev = 0
         # aux_loss = loss_fun(aux_outputs, point_label_tensor)
-        loss = self.lovasz_softmax(torch.nn.functional.softmax(predict_labels).to(cur_dev), val_label_tensor.to(cur_dev),ignore=0) \
-               + self.loss_func(predict_labels.to(cur_dev), val_label_tensor.to(cur_dev))\
-               + self.loss_func(predict_labels.to(cur_dev), val_label_tensor.to(cur_dev))
+        loss = self.lovasz_softmax(torch.nn.functional.softmax(predict_labels[0]).to(cur_dev), val_label_tensor.to(cur_dev),ignore=0) \
+               + self.loss_func(predict_labels[0].to(cur_dev), val_label_tensor.to(cur_dev))\
+               + self.loss_func(predict_labels[0].to(cur_dev), val_label_tensor.to(cur_dev))
         #removed ignore 0
         self.val_loss_list.append(loss)
 
