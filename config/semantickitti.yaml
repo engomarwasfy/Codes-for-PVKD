@@ -14,9 +14,9 @@ model_params:
   fea_dim: 9
   out_fea_dim: 256
   num_class: 20
-  num_input_features: 32 #16
+  num_input_features: 128 #16
   use_norm: True
-  init_size: 32 #16
+  init_size: 4 #16
 
 
 ###################
