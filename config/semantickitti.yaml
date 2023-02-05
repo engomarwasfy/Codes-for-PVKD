@@ -16,7 +16,7 @@ model_params:
   num_class: 20
   num_input_features: 512 #16
   use_norm: True
-  init_size: 16 #16
+  init_size: 4 #16
 
 
 ###################
