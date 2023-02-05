@@ -245,104 +245,26 @@ class ReconBlock(nn.Module):
         shortcut = shortcut.replace_feature(shortcut.features * x.features)
         return shortcut
 
-
-class Asymm_3d_spconv(nn.Module):
-    def __init__(self,
-                 output_shape,
-                 use_norm=True,
-                 num_input_features=128,
-                 nclasses=20, n_height=32, strict=False, init_size=16):
-        super(Asymm_3d_spconv, self).__init__()
-        self.nclasses = nclasses
-        self.nheight = n_height
-        self.strict = False
-
-        sparse_shape = np.array(output_shape)
-        # sparse_shape[0] = 11
-        print(sparse_shape)
-        self.sparse_shape = sparse_shape
-
-        self.downCntx = ResContextBlock(num_input_features, init_size, indice_key="pre")
-        self.resBlock2 = ResBlock(init_size, 2 * init_size, 0.2, height_pooling=True, indice_key="down2")
-        self.resBlock3 = ResBlock(2 * init_size, 4 * init_size, 0.2, height_pooling=True, indice_key="down3")
-        self.resBlock4 = ResBlock(4 * init_size, 8 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down4")
-        self.resBlock5 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down5")
-
-        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up0", up_key="down5")
-        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up1", up_key="down4")
-        self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up2", up_key="down3")
-        self.upBlock3 = UpBlock(4 * init_size, 2 * init_size, indice_key="up3", up_key="down2")
-
-        self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key="recon")
-
-        self.logits = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
-
-    def forward(self, voxel_features, coors, batch_size):
-        # x = x.contiguous()
-        coors = coors.int()
-        # import pdb
-        # pdb.set_trace
-        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
-                                      batch_size)
-        ret = self.downCntx(ret)
-        down1c, down1b = self.resBlock2(ret)
-        down2c, down2b = self.resBlock3(down1c)
-        down3c, down3b = self.resBlock4(down2c)
-        down4c, down4b = self.resBlock5(down3c)
-
-        up4e = self.upBlock0(down4c, down4b)
-        up3e = self.upBlock1(up4e, down3b)
-        up2e = self.upBlock2(up3e, down2b)
-        up1e = self.upBlock3(up2e, down1b)
-
-        up0e = self.ReconNet(up1e)
-
-        up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
-
-        logits = self.logits(up0e)
-        y = logits.dense()
-        return y #, up0e.features, coors
-
 class encoder1(nn.Module):
     def __init__(self,
-                 output_shape,
                  num_input_features=128,
-                 nclasses=20, init_size=16):
+                 init_size=16):
         super(encoder1, self).__init__()
-        sparse_shape = np.array(output_shape)
-        # sparse_shape[0] = 11
-        print(sparse_shape)
-        self.sparse_shape = sparse_shape
-        self.nclasses = nclasses
-        self.downCntx = ResContextBlock(num_input_features, init_size, indice_key="pre")
-        self.resBlock2 = ResBlock(init_size, 2 * init_size, 0.2, height_pooling=True, indice_key="down2")
-        self.resBlock3 = ResBlock(2 * init_size, 4 * init_size, 0.2, height_pooling=True, indice_key="down3")
+        self.downCntx = ResContextBlock(num_input_features, init_size, indice_key="pre1")
+        self.resBlock2 = ResBlock(init_size, 2 * init_size, 0.2, height_pooling=True, indice_key="down12")
+        self.resBlock3 = ResBlock(2 * init_size, 4 * init_size, 0.2, height_pooling=True, indice_key="down13")
         self.resBlock4 = ResBlock(4 * init_size, 8 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down4")
+                                  indice_key="down14")
         self.resBlock5 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down5")
+                                  indice_key="down15")
+        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up10", up_key="down15")
+        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up11", up_key="down14")
+        self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up12", up_key="down13")
+        self.upBlock3 = UpBlock(4 * init_size, 2 * init_size, indice_key="up13", up_key="down12")
+        self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key="recon1")
+    def forward(self, features):
 
-        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up0", up_key="down5")
-        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up1", up_key="down4")
-        self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up2", up_key="down3")
-        self.upBlock3 = UpBlock(4 * init_size, 2 * init_size, indice_key="up3", up_key="down2")
-
-        self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key="recon")
-
-        self.logits = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
-
-    def forward(self, voxel_features, coors, batch_size):
-        # x = x.contiguous()
-        coors = coors.int()
-        # import pdb
-        # pdb.set_trace()
-        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
-                                      batch_size)
-        ret = self.downCntx(ret)
+        ret = self.downCntx(features)
         down1c, down1b = self.resBlock2(ret)
         down2c, down2b = self.resBlock3(down1c)
         down3c, down3b = self.resBlock4(down2c)
@@ -356,222 +278,244 @@ class encoder1(nn.Module):
         up0e = self.ReconNet(up1e)
 
         up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
+        return up0e #, up0e.features, coors
+class decoder4(nn.Module):
+    def __init__(self,
+                 num_input_features=128,
+                 init_size=16):
+        super(decoder4, self).__init__()
+        self.downCntx = ResContextBlock(num_input_features, init_size, indice_key="pre1d")
+        self.resBlock2 = ResBlock(init_size, 2 * init_size, 0.2, height_pooling=True, indice_key="down12d")
+        self.resBlock3 = ResBlock(2 * init_size, 4 * init_size, 0.2, height_pooling=True, indice_key="down13d")
+        self.resBlock4 = ResBlock(4 * init_size, 8 * init_size, 0.2, pooling=True, height_pooling=False,
+                                  indice_key="down14d")
+        self.resBlock5 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
+                                  indice_key="down15d")
+        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up10d", up_key="down15d")
+        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up11d", up_key="down14d")
+        self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up12d", up_key="down13d")
+        self.upBlock3 = UpBlock(4 * init_size, 2 * init_size, indice_key="up13d", up_key="down12d")
+        self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key="recon1d")
+    def forward(self, features):
 
-        logits = self.logits(up0e)
-        y = logits.dense()
+        ret = self.downCntx(features)
+        down1c, down1b = self.resBlock2(ret)
+        down2c, down2b = self.resBlock3(down1c)
+        down3c, down3b = self.resBlock4(down2c)
+        down4c, down4b = self.resBlock5(down3c)
+
+        up4e = self.upBlock0(down4c, down4b)
+        up3e = self.upBlock1(up4e, down3b)
+        up2e = self.upBlock2(up3e, down2b)
+        up1e = self.upBlock3(up2e, down1b)
+        up0e = self.ReconNet(up1e)
+        up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
         return up0e #, up0e.features, coors
 class encoder2(nn.Module):
     def __init__(self,
-                 output_shape,
                  num_input_features=128,
-                 nclasses=20,init_size=16):
+                 init_size=16):
         super(encoder2, self).__init__()
-        sparse_shape = np.array(output_shape)
-        # sparse_shape[0] = 11
-        print(sparse_shape)
-        self.sparse_shape = sparse_shape
-        self.nclasses = nclasses
-        self.downCntx = ResContextBlock(num_input_features,2 * init_size, indice_key="pre")
-        self.resBlock2 = ResBlock(2 * init_size, 4 * init_size, 0.2, height_pooling=True, indice_key="down3")
+        self.downCntx = ResContextBlock(num_input_features,2 * init_size, indice_key="pre2")
+        self.resBlock2 = ResBlock(2 * init_size, 4 * init_size, 0.2, height_pooling=True, indice_key="down23")
         self.resBlock3 = ResBlock(4 * init_size, 8 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down4")
+                                  indice_key="down24")
         self.resBlock4 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down5")
-
-        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up0", up_key="down5")
-        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up1", up_key="down4")
-        self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up2", up_key="down3")
-        self.ReconNet = ReconBlock(4 * init_size, 4 * init_size, indice_key="recon")
-
-        self.logits = spconv.SubMConv3d(8 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
-
-    def forward(self, voxel_features, coors, batch_size):
-        # x = x.contiguous()
-        coors = coors.int()
-        # import pdb
-        # pdb.set_trace()
-        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
-                                      batch_size)
-        ret = self.downCntx(ret)
+                                  indice_key="down25")
+        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up20", up_key="down25")
+        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up21", up_key="down24")
+        self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up22", up_key="down23")
+        self.ReconNet = ReconBlock(4 * init_size, 4 * init_size, indice_key="recon2")
+    def forward(self, features):
+        ret = self.downCntx(features)
         down1c, down1b = self.resBlock2(ret)
         down2c, down2b = self.resBlock3(down1c)
         down3c, down3b = self.resBlock4(down2c)
-
         up3e = self.upBlock0(down3c, down3b)
         up2e = self.upBlock1(up3e, down2b)
         up1e = self.upBlock2(up2e, down1b)
-
         up0e = self.ReconNet(up1e)
-
         up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
-
-        logits = self.logits(up0e)
-        y = logits.dense()
         return up0e #, up0e.features, coors
+
+class decoder3(nn.Module):
+        def __init__(self,
+                     num_input_features=128,
+                     init_size=16):
+            super(decoder3, self).__init__()
+            self.downCntx = ResContextBlock(num_input_features, 2 * init_size, indice_key="pre2d")
+            self.resBlock2 = ResBlock(2 * init_size, 4 * init_size, 0.2, height_pooling=True, indice_key="down23d")
+            self.resBlock3 = ResBlock(4 * init_size, 8 * init_size, 0.2, pooling=True, height_pooling=False,
+                                      indice_key="down24d")
+            self.resBlock4 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
+                                      indice_key="down25d")
+
+            self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up20d", up_key="down25d")
+            self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up21d", up_key="down24d")
+            self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up22d", up_key="down23d")
+            self.ReconNet = ReconBlock(4 * init_size, 4 * init_size, indice_key="recon2d")
+        def forward(self, features):
+            ret = self.downCntx(features)
+            down1c, down1b = self.resBlock2(ret)
+            down2c, down2b = self.resBlock3(down1c)
+            down3c, down3b = self.resBlock4(down2c)
+            up3e = self.upBlock0(down3c, down3b)
+            up2e = self.upBlock1(up3e, down2b)
+            up1e = self.upBlock2(up2e, down1b)
+            up0e = self.ReconNet(up1e)
+            up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
+            return up0e  # , up0e.featur
 class encoder3(nn.Module):
     def __init__(self,
-                 output_shape,
                  num_input_features=128,
-                 nclasses=20, init_size=16):
+                 init_size=16):
         super(encoder3, self).__init__()
-        sparse_shape = np.array(output_shape)
-        # sparse_shape[0] = 11
-        print(sparse_shape)
-        self.sparse_shape = sparse_shape
-        self.nclasses = nclasses
-        self.downCntx = ResContextBlock(num_input_features,4 * init_size, indice_key="pre")
+        self.downCntx = ResContextBlock(num_input_features,4 * init_size, indice_key="pre3")
         self.resBlock2 = ResBlock(4 * init_size, 8 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down4")
+                                  indice_key="down34")
         self.resBlock3 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down5")
-
-        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up0", up_key="down5")
-        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up1", up_key="down4")
-        self.ReconNet = ReconBlock(8 * init_size, 8 * init_size, indice_key="recon")
-
-        self.logits = spconv.SubMConv3d(16 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
-
-    def forward(self, voxel_features, coors, batch_size):
-        # x = x.contiguous()
-        coors = coors.int()
-        # import pdb
-        # pdb.set_trace()
-        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
-                                      batch_size)
-        ret = self.downCntx(ret)
+                                  indice_key="down35")
+        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up30", up_key="down35")
+        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up31", up_key="down34")
+        self.ReconNet = ReconBlock(8 * init_size, 8 * init_size, indice_key="recon3")
+    def forward(self, features):
+        ret = self.downCntx(features)
         down1c, down1b = self.resBlock2(ret)
         down2c, down2b = self.resBlock3(down1c)
-
         up2e = self.upBlock0(down2c, down2b)
         up1e = self.upBlock1(up2e, down1b)
         up0e = self.ReconNet(up1e)
-
         up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
-
-        logits = self.logits(up0e)
-        y = logits.dense()
+        return up0e #, up0e.features, coors
+class decoder2(nn.Module):
+    def __init__(self,
+                 num_input_features=128,
+                 init_size=16):
+        super(decoder2, self).__init__()
+        self.downCntx = ResContextBlock(num_input_features,4 * init_size, indice_key="pre3d")
+        self.resBlock2 = ResBlock(4 * init_size, 8 * init_size, 0.2, pooling=True, height_pooling=False,
+                                  indice_key="down34d")
+        self.resBlock3 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
+                                  indice_key="down35d")
+        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up30d", up_key="down35d")
+        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up31d", up_key="down34d")
+        self.ReconNet = ReconBlock(8 * init_size, 8 * init_size, indice_key="recon3d")
+    def forward(self, features):
+        ret = self.downCntx(features)
+        down1c, down1b = self.resBlock2(ret)
+        down2c, down2b = self.resBlock3(down1c)
+        up2e = self.upBlock0(down2c, down2b)
+        up1e = self.upBlock1(up2e, down1b)
+        up0e = self.ReconNet(up1e)
+        up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
         return up0e #, up0e.features, coors
 
 class encoder4(nn.Module):
     def __init__(self,
-                 output_shape,
                  num_input_features=128,
-                 nclasses=20, init_size=16):
+                 init_size=16):
         super(encoder4, self).__init__()
-        sparse_shape = np.array(output_shape)
-        # sparse_shape[0] = 11
-        print(sparse_shape)
-        self.sparse_shape = sparse_shape
-        self.nclasses = nclasses
-        self.downCntx = ResContextBlock(num_input_features,8 * init_size, indice_key="pre")
+        self.downCntx = ResContextBlock(num_input_features,8 * init_size, indice_key="pre4")
         self.resBlock2 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
-                                  indice_key="down5")
-
-        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up0", up_key="down5")
-
-        self.ReconNet = ReconBlock(16 * init_size, 16 * init_size, indice_key="recon")
-
-        self.logits = spconv.SubMConv3d(32 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
-
-    def forward(self, voxel_features, coors, batch_size):
-        # x = x.contiguous()
-        coors = coors.int()
-        # import pdb
-        # pdb.set_trace()
-        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
-                                      batch_size)
-        ret = self.downCntx(ret)
+                                  indice_key="down45")
+        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up40", up_key="down45")
+        self.ReconNet = ReconBlock(16 * init_size, 16 * init_size, indice_key="recon4")
+    def forward(self,features):
+        ret = self.downCntx(features)
         down1c, down1b = self.resBlock2(ret)
-
         up1e = self.upBlock0(down1c, down1b)
         up0e = self.ReconNet(up1e)
-
         up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
-
-        logits = self.logits(up0e)
-        y = logits.dense()
-        return up0e #, up0e.features, coors
-
+        return up0e
+class decoder1(nn.Module):
+    def __init__(self,
+                 num_input_features=128,
+                 init_size=16):
+        super(decoder1, self).__init__()
+        self.downCntx = ResContextBlock(num_input_features, 8 * init_size, indice_key="pre4d")
+        self.resBlock2 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False,
+                                  indice_key="down45d")
+        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up40d", up_key="down45d")
+        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up31d", up_key="down34d")
+        self.ReconNet = ReconBlock(16 * init_size, 16 * init_size, indice_key="recon4d")
+    def forward(self, features):
+        ret = self.downCntx(features)
+        down1c, down1b = self.resBlock2(ret)
+        up1e = self.upBlock0(down1c, down1b)
+        up0e = self.ReconNet(up1e)
+        up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
+        return up0e  # , u
 class encoder5(nn.Module):
     def __init__(self,
-                 output_shape,
                  num_input_features=128,
-                 nclasses=20, init_size=16):
+                 init_size=16):
         super(encoder5, self).__init__()
-        sparse_shape = np.array(output_shape)
-        # sparse_shape[0] = 11
-        print(sparse_shape)
-        self.sparse_shape = sparse_shape
-        self.nclasses = nclasses
-
-        self.downCntx = ResContextBlock(num_input_features, 16* init_size, indice_key="pre")
-
-        self.ReconNet = ReconBlock(16 * init_size, 16 * init_size, indice_key="recon")
-
-        self.logits = spconv.SubMConv3d(32 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
-
-    def forward(self, voxel_features, coors, batch_size):
-        # x = x.contiguous()
-        coors = coors.int()
-        # import pdb
-        # pdb.set_trace()
-        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
-                                      batch_size)
-        ret = self.downCntx(ret)
+        self.downCntx = ResContextBlock(num_input_features, 16* init_size, indice_key="pre5")
+        self.ReconNet = ReconBlock(16 * init_size, 16 * init_size, indice_key="recon5")
+    def forward(self, features):
+      
+        ret = self.downCntx(features)
 
         up0e = self.ReconNet(ret)
 
         up0e = up0e.replace_feature(torch.cat((up0e.features, ret.features), 1))
-
-        logits = self.logits(up0e)
-        y = logits.dense()
         return up0e#, up0e.features, coors
 class U2NET(nn.Module):
     def __init__(self,
                  output_shape,
-                 use_norm=True,
                  num_input_features=128,
-                 nclasses=20, n_height=32, strict=False, init_size=16):
+                 nclasses=20,  init_size=16):
         super(U2NET, self).__init__()
         sparse_shape = np.array(output_shape)
-        # sparse_shape[0] = 11
         print(sparse_shape)
         self.sparse_shape = sparse_shape
         self.nclasses = nclasses
-        self.nheight = n_height
-        self.strict = False
-        self.encoder1 = encoder1(output_shape,num_input_features, nclasses, init_size)
-        self.encoder2 = encoder2(output_shape,4*init_size, nclasses, init_size)
-        self.encoder3 = encoder3(output_shape,8*init_size, nclasses, init_size)
-        self.encoder4 = encoder4(output_shape,16*init_size, nclasses, init_size)
-        self.encoder5 = encoder5(output_shape,32*init_size, nclasses, init_size)
-        self.decoder1 = encoder4(output_shape,64*init_size, nclasses, init_size)
-        self.decoder2 = encoder3(output_shape,48*init_size, nclasses, init_size)
-        self.decoder3 = encoder2(output_shape,24*init_size, nclasses, init_size)
-        self.decoder4 = encoder1(output_shape,12*init_size, nclasses, init_size)
-
-        self.logits = spconv.SubMConv3d(60 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
+        self.encoder1 = encoder1(num_input_features, init_size)
+        self.encoder2 = encoder2(4*init_size , init_size)
+        self.encoder3 = encoder3(8*init_size , init_size)
+        self.encoder4 = encoder4(16*init_size, init_size)
+        self.encoder5 = encoder5(32*init_size, init_size)
+        self.decoder1 = decoder1(64*init_size, init_size)
+        self.decoder2 = decoder2(64*init_size, init_size)
+        self.decoder3 = decoder3(32*init_size, init_size)
+        self.decoder4 = decoder4(16*init_size,init_size)
+        self.interEncoder1 = spconv.SparseMaxPool3d(indice_key="inter1", kernel_size=3,algo=ConvAlgo.Native)
+        self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=2,algo=ConvAlgo.Native)
+        self.interEncoder3 = spconv.SparseMaxPool3d(indice_key="inter3", kernel_size=2,algo=ConvAlgo.Native)
+        self.interEncoder4 = spconv.SparseMaxPool3d(indice_key="inter4", kernel_size=2,algo=ConvAlgo.Native)
+        self.interDecoder1 = spconv.SparseInverseConv3d (64 * init_size, 64 * init_size, indice_key="inter4", kernel_size=2,bias=False,algo=ConvAlgo.Native)
+        self.interDecoder2 = spconv.SparseInverseConv3d(64 * init_size, 64 * init_size, indice_key="inter3", kernel_size=2,bias=False,algo=ConvAlgo.Native)
+        self.interDecoder3 = spconv.SparseInverseConv3d(32 * init_size, 32 * init_size, indice_key="inter2", kernel_size=2,bias=False,algo=ConvAlgo.Native)
+        self.interDecoder4 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.logits = spconv.SubMConv3d(8 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1, padding=1,
                                         bias=True,algo=ConvAlgo.Native)
-
     def forward(self, voxel_features, coors, batch_size):
-       x1=self.encoder1.forward(voxel_features, coors, batch_size)
-       x2=self.encoder2.forward(x1.features, coors, batch_size)
-       x3=self.encoder3.forward(x2.features, coors, batch_size)
-       x4=self.encoder4.forward(x3.features, coors, batch_size)
-       x5=self.encoder5.forward(x4.features, coors, batch_size)
-       y1=self.decoder1.forward(torch.cat((x5.features,x4.features),1), coors, batch_size)
-       y2=self.decoder2.forward(torch.cat((y1.features,x3.features),1), coors, batch_size)
-       y3=self.decoder3.forward(torch.cat((y2.features,x2.features),1), coors, batch_size)
-       y4= self.decoder4.forward(torch.cat((y3.features,x1.features),1), coors, batch_size)
-       output = torch.cat ((y4.features,y3.features,y2.features,y1.features),1)
-       coors2 = coors.int()
-       sparseTensorOutput=spconv.SparseConvTensor(output, coors2, self.sparse_shape,
-                               batch_size)
-       logits = self.logits(sparseTensorOutput)
+       coors = coors.int()
+       ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
+                                      batch_size)
+       x1=self.encoder1.forward(ret)
+       x2i=self.interEncoder1.forward(x1)
+       x2o=self.encoder2.forward(x2i)
+       x3i=self.interEncoder2.forward(x2o)
+       x3o=self.encoder3.forward(x3i)
+       x4i=self.interEncoder3.forward(x3o)
+       x4o=self.encoder4.forward(x4i)
+       x5i=self.interEncoder4.forward(x4o)
+       x5o=self.encoder5.forward(x5i)
+       x5o = x5o.replace_feature(torch.cat((x5o.features, x5i.features), 1))
+       y1i=self.interDecoder1.forward(x5o)
+       y1o=self.decoder1.forward(y1i)
+       y1o = y1o.replace_feature(torch.cat((y1o.features, x4o.features), 1))
+       y2i=self.interDecoder2.forward(y1o)
+       y2o=self.decoder2.forward(y2i)
+       y2o = y2o.replace_feature(torch.cat((y2o.features, x3o.features), 1))
+       y3i=self.interDecoder3.forward(y2o)
+       y3o=self.decoder3.forward(y3i)
+       y3o = y3o.replace_feature(torch.cat((y3o.features, x2o.features), 1))
+       y4i=self.interDecoder4.forward(y3o)
+       y4o= self.decoder4.forward(y4i)
+       y4o = y4o.replace_feature(torch.cat((y4o.features, x1.features), 1))
+       logits = self.logits(y4o)
 
        y= logits.dense()
        return y
