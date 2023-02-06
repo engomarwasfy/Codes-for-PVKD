@@ -44,6 +44,7 @@ class Lite(pl.LightningModule):
         self.unique_label_str = [self.SemKITTI_label_name[x] for x in self.unique_label]
         self.hist_list = []
         self.val_loss_list = []
+        self.best_val_miou=0
         self.loss_list=[]
         if os.path.exists(self.model_load_path):
             self.my_model = load_checkpoint(self.model_load_path, self.my_model)
@@ -81,11 +82,9 @@ class Lite(pl.LightningModule):
         #removed ignore 0
         self.val_loss_list.append(loss)
 
-        '''
-        predict_labels = torch.argmax(predict_labels, dim=1)
-        predict_labels = predict_labels.detach()
+        predict_labels_ = torch.argmax(predict_labels[0], dim=1)
         for count, i_val_grid in enumerate(val_grid):
-            self.hist_list.append(fast_hist_crop(predict_labels[
+            self.hist_list.append(fast_hist_crop(predict_labels_[
                                                 count, val_grid[count][:, 0], val_grid[count][:, 1],
                                                 val_grid[count][:, 2]], val_pt_labs[count],
                                             self.unique_label))
@@ -102,13 +101,13 @@ class Lite(pl.LightningModule):
         if self.best_val_miou < val_miou:
             self.best_val_miou = val_miou
             torch.save(self.my_model.state_dict(), self.model_save_path)
-
         print('Current val miou is %.3f while the best val miou is %.3f' %
               (val_miou, self.best_val_miou))
-        print('Current val loss is %.3f' %
-              (np.mean(self.val_loss_list)))
-        '''
+        #print('Current val loss is %.3f' %
+         #     (np.mean(self.val_loss_list)))
         self.log("val_loss", loss, on_step = True, on_epoch = True, prog_bar = True, logger = True)
+        return loss
+
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.my_model.parameters(), lr=self.train_hypers["learning_rate"])
@@ -119,7 +118,7 @@ class Lite(pl.LightningModule):
 def main(args):
    # Lite(  accelerator="cuda" ).run(args)
    train_loader =lightingDataloader(args.config_path)
-   trainer = pl.Trainer(max_epochs=40, accelerator="cuda")
+   trainer = pl.Trainer(max_epochs=40,accelerator="cuda" ,move_metrics_to_cpu=True)
    model = Lite()
    trainer.fit(model, train_dataloaders=train_loader)
 
