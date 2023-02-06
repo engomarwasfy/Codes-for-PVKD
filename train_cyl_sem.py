@@ -10,10 +10,11 @@ import sys
 import numpy as np
 import torch
 import torch.optim as optim
+from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping, StochasticWeightAveraging, ModelCheckpoint
 from tqdm import tqdm
 
 from dataloader.lightingDataloader import lightingDataloader
-from utils.metric_util import per_class_iu, fast_hist_crop
+from utils.metric_util import per_class_iu, fast_hist_crop, IoU
 from dataloader.pc_dataset import get_SemKITTI_label_name
 from builder import data_builder, model_builder, loss_builder
 from config.config import load_config_data
@@ -46,6 +47,8 @@ class Lite(pl.LightningModule):
         self.val_loss_list = []
         self.best_val_miou=0
         self.loss_list=[]
+        self.val_iou = IoU(self.configs['dataset_params'], compute_on_step=False)
+
         if os.path.exists(self.model_load_path):
             self.my_model = load_checkpoint(self.model_load_path, self.my_model)
     def training_step(self, batch  ,batch_idx):
@@ -107,7 +110,21 @@ class Lite(pl.LightningModule):
          #     (np.mean(self.val_loss_list)))
         self.log("val_loss", loss, on_step = True, on_epoch = True, prog_bar = True, logger = True)
         return loss
+    def validation_epoch_end(self, outputs):
+        iou, best_miou = self.val_iou.compute()
+        mIoU = np.nanmean(iou)
+        str_print = ''
+        self.log('val/mIoU', mIoU, on_epoch=True)
+        self.log('val/best_miou', best_miou, on_epoch=True)
+        str_print += 'Validation per class iou: '
+        try:
+            for class_name, class_iou in zip(self.val_iou.unique_label_str, iou):
+                str_print += '\n%s : %.2f%%' % (class_name, class_iou * 100)
 
+            str_print += '\nCurrent val miou is %.3f while the best val miou is %.3f' % (mIoU * 100, best_miou * 100)
+            self.print(str_print)
+        except:
+            print('Error in printing iou')
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.my_model.parameters(), lr=self.train_hypers["learning_rate"])
@@ -117,10 +134,26 @@ class Lite(pl.LightningModule):
         return [optimizer], [lr_scheduler]
 def main(args):
    # Lite(  accelerator="cuda" ).run(args)
+   config_path = args.config_path
+   configs = load_config_data(config_path)
+   # reproducibility
+   torch.backends.cudnn.deterministic = True
+   torch.backends.cudnn.benchmark = True
+       # init trainer
+   print('Start training...')
+   trainer = pl.Trainer(accelerator='cuda',
+                            max_epochs=40,
+                            resume_from_checkpoint=None,
+                            check_val_every_n_epoch=1,
+                            gradient_clip_val=1,
+                            accumulate_grad_batches=1
+                            )
+
    train_loader =lightingDataloader(args.config_path)
-   trainer = pl.Trainer(max_epochs=40,accelerator="cuda" ,move_metrics_to_cpu=True)
+
    model = Lite()
    trainer.fit(model, train_dataloaders=train_loader)
+
 
 
 
@@ -131,7 +164,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-y', '--config_path', default='config/semantickitti.yaml')
     args = parser.parse_args()
-
+    config_path = args.config_path
+    configs = load_config_data(config_path)
     print(' '.join(sys.argv))
     print(args)
     main(args)
