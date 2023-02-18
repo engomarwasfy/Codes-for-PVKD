@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytorch_lightning as pl
 from builder import data_builder
 from config.config import load_config_data
@@ -40,3 +42,19 @@ class lightingDataloader(pl.LightningDataModule):
 
     def predict_dataloader(self):
         return self.val_dataset_loader
+
+    def state_dict(self) -> dict[str, Any]:
+        """Called when saving a checkpoint, implement to generate and save datamodule state.
+
+        Returns:
+            A dictionary containing datamodule state.
+        """
+        return dict()
+
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        """Called when loading a checkpoint, implement to reload datamodule state given datamodule state_dict.
+
+        Args:
+            state_dict: the datamodule state returned by ``state_dict``.
+        """
+        pass

@@ -600,3 +600,31 @@ class U2NET(nn.Module):
 
        y= logits.dense(),logits4.dense(),logits3.dense(),logits2.dense(),logits1.dense()
        return y
+
+
+
+
+class UNET(nn.Module):
+    def __init__(self,
+                 output_shape,
+                 num_input_features=128,
+                 nclasses=20,  init_size=16):
+        super(UNET, self).__init__()
+        sparse_shape = np.array(output_shape)
+        print(sparse_shape)
+        self.sparse_shape = sparse_shape
+        self.nclasses = nclasses
+        self.encoder1 = encoder1(num_input_features, init_size)
+
+        self.logits = spconv.SubMConv3d(4*init_size, nclasses, indice_key="logit", kernel_size=1, stride=1,
+                                        padding=1,
+                                        bias=True, algo=ConvAlgo.Native)
+    def forward(self, voxel_features, coors, batch_size):
+       coors = coors.int()
+       ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
+                                      batch_size)
+       x1=self.encoder1.forward(ret)
+       logits= self.logits(x1)
+
+       y= [logits.dense()]
+       return y

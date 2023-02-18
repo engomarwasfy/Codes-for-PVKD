@@ -15,11 +15,13 @@ model_params = Map(
         "num_input_features": Int(),
         "use_norm": Bool(),
         "init_size": Int(),
+        "model_name": Str(),
     }
 )
 
 dataset_params = Map(
     {
+        "training_size": Int(),
         "dataset_type": Str(),
         "pc_dataset_type": Str(),
         "ignore_label": Int(),
@@ -62,7 +64,34 @@ train_params = Map(
         "checkpoint_every_n_steps": Int(),
         "max_num_epochs": Int(),
         "eval_every_n_steps": Int(),
-        "learning_rate": Float()
+        "learning_rate": Float(),
+        "optimizer": Str(),
+        "lr_scheduler": Str(),
+        "momentum": Float(),
+        "nesterov": Bool(),
+        "weight_decay": Float(),
+        "lambda_seg2d": Float(),
+        "lambda_xm": Float(),
+        "decay_rate": Float(),
+        "decay_step": Int(),
+        "monitor" : Str(),
+        "log_dir_name": Str(),
+        "save_top_k": Int(),
+        "save_dir_path": Str(),
+        "ckpt_path": Str(),
+        "load_ckpt": Bool(),
+        "swa_enabled": Bool(),
+        "swa_start": Int(),
+        "swa_annealing_epochs": Int(),
+        "swa_lr": Float(),
+        "log_every_n_steps": Int(),
+        "gradient_clip_val" : Int(),
+        "accumulate_grad_batches" : Int(),
+        "num_sanity_val_steps" : Int(),
+        "patience" : Int(),
+
+
+
      }
 )
 

@@ -5,6 +5,7 @@ format_version: 4
 ## Model options
 model_params:
   model_architecture: "cylinder_asym"
+  model_name: "UNET"
 
   output_shape:
     - 480
@@ -23,6 +24,7 @@ model_params:
 ###################
 ## Dataset options
 dataset_params:
+  training_size: 19132
   dataset_type: "cylinder_dataset"
   pc_dataset_type: "SemKITTI_sk"
   ignore_label: 0
@@ -67,3 +69,27 @@ train_params:
   max_num_epochs: 20 #40
   eval_every_n_steps: 50 #4599
   learning_rate: 0.001 #1
+  optimizer: SGD  # [SGD, Adam]
+  lr_scheduler: CosineAnnealingWarmRestarts  # [StepLR, ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts]
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 1.0e-4
+  lambda_seg2d: 1
+  lambda_xm: 0.05
+  decay_rate: 0.1
+  decay_step: 20
+  monitor: "val/mIoU"
+  save_top_k: 10
+  log_dir_name: "pl_logs"
+  save_dir_path: "./model_save_dir"
+  ckpt_path: "./model_save_dir/checkpoints/last.ckpt"
+  load_ckpt: False
+  swa_enabled: True
+  swa_start: 10
+  swa_annealing_epochs: 10
+  swa_lr: 0.05
+  log_every_n_steps: 50
+  gradient_clip_val: 1
+  accumulate_grad_batches: 1
+  num_sanity_val_steps: 0
+  patience: 10

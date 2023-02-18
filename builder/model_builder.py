@@ -3,7 +3,7 @@
 # @file: model_builder.py 
 
 from network.cylinder_spconv_3d import get_model_class
-from network.segmentator_3d_asymm_spconv import  U2NET
+from network.segmentator_3d_asymm_spconv import U2NET, UNET
 from network.cylinder_fea_generator import cylinder_fea
 
 
@@ -15,12 +15,19 @@ def build(model_config):
     init_size = model_config['init_size']
     fea_dim = model_config['fea_dim']
     out_fea_dim = model_config['out_fea_dim']
-
-    cylinder_3d_spconv_seg = U2NET(
-        output_shape=output_shape,
-        num_input_features=num_input_features,
-        init_size=init_size,
-        nclasses=num_class)
+    cylinder_3d_spconv_seg = None
+    if model_config['model_name'] == 'U2NET':
+        cylinder_3d_spconv_seg = U2NET(
+            output_shape=output_shape,
+            num_input_features=num_input_features,
+            init_size=init_size,
+            nclasses=num_class)
+    elif model_config['model_name'] == 'UNET':
+        cylinder_3d_spconv_seg = UNET(
+            output_shape=output_shape,
+            num_input_features=num_input_features,
+            init_size=init_size,
+            nclasses=num_class)
 
     cy_fea_net = cylinder_fea(grid_size=output_shape,
                               fea_dim=fea_dim,
