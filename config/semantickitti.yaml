@@ -5,7 +5,7 @@ format_version: 4
 ## Model options
 model_params:
   model_architecture: "cylinder_asym"
-  model_name: "UNET"
+  model_name: "U2NETP2"
 
   output_shape:
     - 480
@@ -17,7 +17,7 @@ model_params:
   num_class: 20
   num_input_features: 512 #16
   use_norm: True
-  init_size: 1
+  init_size: 8
    #16
 
 
@@ -63,8 +63,8 @@ val_data_loader:
 ###################
 ## Train params
 train_params:
-  model_load_path: "./model_load_dir/model_tmp.pt"
-  model_save_path: "./model_save_dir/model_tmp2.pt"
+  model_load_path: "./model_save_dir/model_tmp2.pt"
+  model_save_path: "./model_save_dir/model_tmp3.pt"
   checkpoint_every_n_steps: 49
   max_num_epochs: 20 #40
   eval_every_n_steps: 50 #4599
@@ -82,8 +82,9 @@ train_params:
   save_top_k: 10
   log_dir_name: "pl_logs"
   save_dir_path: "./model_save_dir"
-  ckpt_path: "./model_save_dir/checkpoints/last.ckpt"
+  ckpt_path: "./model_save_dir/model_tmp2.pt"
   load_ckpt: False
+  manual_load_ckpt: False
   swa_enabled: True
   swa_start: 10
   swa_annealing_epochs: 10

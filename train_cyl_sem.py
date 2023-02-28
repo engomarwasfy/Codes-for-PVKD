@@ -58,10 +58,10 @@ class Lite(pl.LightningModule):
         self.best_val_miou=0
         self.loss_list=[]
         self.val_iou = IoU(self.configs['dataset_params'], compute_on_step=True)
-        '''
-        if os.path.exists(self.model_load_path):
+        if os.path.exists(self.model_load_path) and self.configs['train_params']['manual_load_ckpt'] and not self.configs['train_params']['load_ckpt'] :
+            print("manual Model load")
             self.my_model = load_checkpoint(self.model_load_path, self.my_model)
-        '''
+
     def training_step(self, batch  ,batch_idx):
         _, train_vox_label, train_grid, _, train_pt_fea = batch
         train_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor) for i in  train_pt_fea]
@@ -240,7 +240,7 @@ def main(args):
    configs = load_config_data(config_path)
    tb_logger = pl_loggers.TensorBoardLogger(os.getcwd(), name=configs['train_params']['log_dir_name'], default_hp_metric=True, log_graph=True)
    os.makedirs(os.getcwd()+'/pl_logs', exist_ok=True)
-   profiler = SimpleProfiler(filename=os.getcwd()+configs['train_params']['log_dir_name']+'/profiler.txt')
+   #profiler = SimpleProfiler(filename=os.getcwd()+configs['train_params']['log_dir_name']+'/profiler.txt')
    checkpoint_callback = ModelCheckpoint(
        monitor=configs['train_params']['monitor'],
        mode='max',
@@ -284,7 +284,7 @@ def main(args):
                                                  verbose=True),
                                    ] + swa,
                         logger=tb_logger,
-                        profiler=profiler,
+                        #profiler=profiler,
                             enable_progress_bar=True,
                             )
 

@@ -80,6 +80,7 @@ train_params = Map(
         "save_dir_path": Str(),
         "ckpt_path": Str(),
         "load_ckpt": Bool(),
+        "manual_load_ckpt": Bool(),
         "swa_enabled": Bool(),
         "swa_start": Int(),
         "swa_annealing_epochs": Int(),
