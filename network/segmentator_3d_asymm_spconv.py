@@ -508,33 +508,33 @@ class U2NET(nn.Module):
         self.encoder2 = encoder2(4*init_size , init_size)
         self.encoder3 = encoder3(8*init_size , init_size)
         self.encoder4 = encoder4(16*init_size, init_size)
-        self.decoder1 = decoder2(48*init_size, init_size)
-        self.decoder2 = decoder3(24*init_size, init_size)
-        self.decoder3 = decoder4(12*init_size, init_size)
+        self.decoder1 = decoder3(48*init_size, init_size)
+        self.decoder2 = decoder4(16*init_size, init_size)
+        self.decoder3 = decoder5(8*init_size, init_size)
         self.interEncoder1 = spconv.SparseMaxPool3d(indice_key="inter1", kernel_size=3,algo=ConvAlgo.Native)
         self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=3,algo=ConvAlgo.Native)
         self.interEncoder3 = spconv.SparseMaxPool3d(indice_key="inter3", kernel_size=3,algo=ConvAlgo.Native)
         self.interDecoder1 = spconv.SparseInverseConv3d (32 * init_size, 32 * init_size, indice_key="inter3", kernel_size=3,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder2 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2", kernel_size=3,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder3 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.interDecoder2 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter2", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.interDecoder3 = spconv.SparseInverseConv3d(4 * init_size, 4 * init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
 
-        self.sidea1 = spconv.SparseInverseConv3d(16 * init_size, 16*init_size, indice_key="inter2", kernel_size=3, bias=False,algo=ConvAlgo.Native)
-        self.sidea2 = spconv.SparseInverseConv3d(16 * init_size, 16*init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.sidea1 = spconv.SparseInverseConv3d(8 * init_size, 8*init_size, indice_key="inter2", kernel_size=3, bias=False,algo=ConvAlgo.Native)
+        self.sidea2 = spconv.SparseInverseConv3d(8 * init_size, 8*init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
 
-        self.sideb1 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1", kernel_size=3, bias=False, algo=ConvAlgo.Native)
+        self.sideb1 = spconv.SparseInverseConv3d(4 * init_size, 4 * init_size, indice_key="inter1", kernel_size=3, bias=False, algo=ConvAlgo.Native)
 
 
 
-        self.logits1 = spconv.SubMConv3d(16 * init_size, nclasses, indice_key="logit1", kernel_size=1, stride=1,
+        self.logits1 = spconv.SubMConv3d(8 * init_size, nclasses, indice_key="logit1", kernel_size=1, stride=1,
                                          padding=1,
                                          bias=True, algo=ConvAlgo.Native)
-        self.logits2 = spconv.SubMConv3d(8 * init_size, nclasses, indice_key="logit2", kernel_size=1, stride=1,
+        self.logits2 = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit2", kernel_size=1, stride=1,
                                          padding=1,
                                          bias=True, algo=ConvAlgo.Native)
         self.logits3 = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit3", kernel_size=1, stride=1,
                                          padding=1,
                                          bias=True, algo=ConvAlgo.Native)
-        self.logits = spconv.SubMConv3d(28 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1, padding=1,
+        self.logits = spconv.SubMConv3d(16 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1, padding=1,
                                         bias=True,algo=ConvAlgo.Native)
     def forward(self, voxel_features, coors, batch_size):
        coors = coors.int()
