@@ -86,6 +86,8 @@ class Lite(pl.LightningModule):
         self.log("train/total_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True,enable_graph=True)
         self.log("train/lovasz_loss", lovasz_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True,enable_graph=True)
         self.log("train/ordinary_loss", ordinary_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True,enable_graph=True)
+        del outputs
+        del train_pt_fea_ten,train_vox_ten ,point_label_tensor
         return loss
     def validation_step(self,batch,batch_idx):
         _, val_vox_label, val_grid, val_pt_labs, val_pt_fea = batch
@@ -136,7 +138,7 @@ class Lite(pl.LightningModule):
         self.log("val/total_loss", loss, on_step = True, on_epoch = True, prog_bar = True, logger = True,enable_graph=True)
         self.log("val/mIoU", val_miou, on_step = True, on_epoch = True, prog_bar = True, logger = True,enable_graph=True)
         self.log("val/best_miou", self.best_val_miou, on_step = True, on_epoch = True, prog_bar = True, logger = True,enable_graph=True)
-
+        del predict_labels
         return loss
     def validation_epoch_end(self, outputs):
         iou, best_miou = self.val_iou.compute()

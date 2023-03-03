@@ -493,6 +493,7 @@ class encoder5(nn.Module):
 
         up0e = up0e.replace_feature(torch.cat((up0e.features, ret.features), 1))
         return up0e#, up0e.features, coors
+
 class U2NET(nn.Module):
     def __init__(self,
                  output_shape,
@@ -507,50 +508,33 @@ class U2NET(nn.Module):
         self.encoder2 = encoder2(4*init_size , init_size)
         self.encoder3 = encoder3(8*init_size , init_size)
         self.encoder4 = encoder4(16*init_size, init_size)
-        self.encoder5 = encoder5(32*init_size, init_size)
-        self.decoder1 = decoder1(64*init_size, init_size)
-        self.decoder2 = decoder2(64*init_size, init_size)
-        self.decoder3 = decoder3(32*init_size, init_size)
-        self.decoder4 = decoder4(16*init_size,init_size)
-        self.decoder5 = decoder5(8*init_size,init_size)
+        self.decoder1 = decoder2(48*init_size, init_size)
+        self.decoder2 = decoder3(24*init_size, init_size)
+        self.decoder3 = decoder4(12*init_size, init_size)
         self.interEncoder1 = spconv.SparseMaxPool3d(indice_key="inter1", kernel_size=3,algo=ConvAlgo.Native)
-        self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=2,algo=ConvAlgo.Native)
-        self.interEncoder3 = spconv.SparseMaxPool3d(indice_key="inter3", kernel_size=2,algo=ConvAlgo.Native)
-        self.interEncoder4 = spconv.SparseMaxPool3d(indice_key="inter4", kernel_size=2,algo=ConvAlgo.Native)
-        self.interDecoder1 = spconv.SparseInverseConv3d (64 * init_size, 64 * init_size, indice_key="inter4", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder2 = spconv.SparseInverseConv3d(64 * init_size, 64 * init_size, indice_key="inter3", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder3 = spconv.SparseInverseConv3d(32 * init_size, 32 * init_size, indice_key="inter2", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder4 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
-        self.sidea1 = spconv.SparseInverseConv3d(32 * init_size, 32*init_size, indice_key="inter4", kernel_size=2, bias=False,algo=ConvAlgo.Native)
-        self.sidea2 = spconv.SparseInverseConv3d(32 * init_size, 32*init_size, indice_key="inter3", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.sidea3 = spconv.SparseInverseConv3d(32 * init_size, 32*init_size, indice_key="inter2", kernel_size=2, bias=False,algo=ConvAlgo.Native)
-        self.sidea4 = spconv.SparseInverseConv3d(32 * init_size, 32*init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=3,algo=ConvAlgo.Native)
+        self.interEncoder3 = spconv.SparseMaxPool3d(indice_key="inter3", kernel_size=3,algo=ConvAlgo.Native)
+        self.interDecoder1 = spconv.SparseInverseConv3d (32 * init_size, 32 * init_size, indice_key="inter3", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.interDecoder2 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.interDecoder3 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
 
-        self.sideb2 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter3", kernel_size=2, bias=False, algo=ConvAlgo.Native)
-        self.sideb3 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2", kernel_size=2, bias=False, algo=ConvAlgo.Native)
-        self.sideb4 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter1", kernel_size=3,bias=False, algo=ConvAlgo.Native)
+        self.sidea1 = spconv.SparseInverseConv3d(16 * init_size, 16*init_size, indice_key="inter2", kernel_size=3, bias=False,algo=ConvAlgo.Native)
+        self.sidea2 = spconv.SparseInverseConv3d(16 * init_size, 16*init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
 
-        self.sidec3 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter2", kernel_size=2,bias=False, algo=ConvAlgo.Native)
-        self.sidec4 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1", kernel_size=3, bias=False, algo=ConvAlgo.Native)
+        self.sideb1 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1", kernel_size=3, bias=False, algo=ConvAlgo.Native)
 
-        self.sided4 = spconv.SparseInverseConv3d(4 * init_size, 4 * init_size, indice_key="inter1", kernel_size=3, bias=False, algo=ConvAlgo.Native)
 
-        self.logits1 = spconv.SubMConv3d(32 * init_size, nclasses, indice_key="logit1", kernel_size=1, stride=1,
-                                        padding=1,
-                                        bias=True, algo=ConvAlgo.Native)
-        self.logits2 = spconv.SubMConv3d(16 * init_size, nclasses, indice_key="logit2", kernel_size=1, stride=1,
+
+        self.logits1 = spconv.SubMConv3d(16 * init_size, nclasses, indice_key="logit1", kernel_size=1, stride=1,
                                          padding=1,
                                          bias=True, algo=ConvAlgo.Native)
-        self.logits3 = spconv.SubMConv3d(8 * init_size, nclasses, indice_key="logit3", kernel_size=1, stride=1,
+        self.logits2 = spconv.SubMConv3d(8 * init_size, nclasses, indice_key="logit2", kernel_size=1, stride=1,
                                          padding=1,
                                          bias=True, algo=ConvAlgo.Native)
-        self.logits4 = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit4", kernel_size=1, stride=1,
+        self.logits3 = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit3", kernel_size=1, stride=1,
                                          padding=1,
                                          bias=True, algo=ConvAlgo.Native)
-        self.logits5 = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit5", kernel_size=1, stride=1,
-                                         padding=1,
-                                         bias=True, algo=ConvAlgo.Native)
-        self.logits = spconv.SubMConv3d(64 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1, padding=1,
+        self.logits = spconv.SubMConv3d(28 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1, padding=1,
                                         bias=True,algo=ConvAlgo.Native)
     def forward(self, voxel_features, coors, batch_size):
        coors = coors.int()
@@ -563,191 +547,211 @@ class U2NET(nn.Module):
        x3o=self.encoder3.forward(x3i)
        x4i=self.interEncoder3.forward(x3o)
        x4o=self.encoder4.forward(x4i)
-       x5i=self.interEncoder4.forward(x4o)
-       x5o=self.encoder5.forward(x5i)
-       x5o = x5o.replace_feature(torch.cat((x5o.features, x5i.features), 1))
-       y1i=self.interDecoder1.forward(x5o)
+       y1i=self.interDecoder1.forward(x4o)
+       y1i = y1i.replace_feature(torch.cat((y1i.features, x3o.features), 1))
        y1o=self.decoder1.forward(y1i)
        zy11 = self.sidea1.forward(y1o)
        zy12 = self.sidea2.forward(zy11)
-       zy13 = self.sidea3.forward(zy12)
-       zy14 = self.sidea4.forward(zy13)
-       y1o = y1o.replace_feature(torch.cat((y1o.features, x4o.features), 1))
        y2i=self.interDecoder2.forward(y1o)
+       y2i = y2i.replace_feature(torch.cat((y2i.features, x2o.features), 1))
        y2o=self.decoder2.forward(y2i)
-       zy21 = self.sideb2.forward(y2o)
-       zy22 = self.sideb3.forward(zy21)
-       zy23 = self.sideb4.forward(zy22)
-       y2o = y2o.replace_feature(torch.cat((y2o.features, x3o.features), 1))
+       zy21 = self.sideb1.forward(y2o)
        y3i=self.interDecoder3.forward(y2o)
+       y3i = y3i.replace_feature(torch.cat((y3i.features, x1.features), 1))
        y3o=self.decoder3.forward(y3i)
-       zy31 = self.sidec3.forward(y3o)
-       zy32 = self.sidec4.forward(zy31)
-       y3o = y3o.replace_feature(torch.cat((y3o.features, x2o.features), 1))
-       y4i=self.interDecoder4.forward(y3o)
-       y4o= self.decoder4.forward(y4i)
-       zy41 = self.sided4.forward(y4o)
-       y4o = y4o.replace_feature(torch.cat((y4o.features, x1.features), 1))
-       y5o = self.decoder5.forward(y4o)
-       z = torch.cat((y5o.features, zy41.features, zy32.features, zy23.features, zy14.features), 1)
-       logits1= self.logits1(zy14)
-       logits2 = self.logits2(zy23)
-       logits3 = self.logits3(zy32)
-       logits4 = self.logits4(zy41)
-       logits5 =self.logits5(y5o)
-       y5o = y5o.replace_feature(z)
-       logits = self.logits(y5o)
+       z = torch.cat((y3o.features, zy21.features, zy12.features), 1)
+       logits1= self.logits1(zy12)
+       logits2 = self.logits2(zy21)
+       logits3 = self.logits3(y3o)
+       ret = ret.replace_feature(z)
+       logits = self.logits(ret)
 
-       y= logits.dense(),logits5.dense(),logits4.dense(),logits3.dense(),logits2.dense(),logits1.dense()
+       y= logits.dense(),logits3.dense(),logits2.dense(),logits1.dense()
+       return y
+class U2NETL(nn.Module):
+    def __init__(self,
+                 output_shape,
+                 num_input_features=128,
+                 nclasses=20,  init_size=16):
+        super(U2NETL, self).__init__()
+        sparse_shape = np.array(output_shape)
+        print(sparse_shape)
+        self.sparse_shape = sparse_shape
+        self.nclasses = nclasses
+        self.encoder1 = encoder1(num_input_features, init_size)
+        self.encoder2 = encoder2(4*init_size , init_size)
+        self.encoder3 = encoder3(8*init_size , init_size)
+        self.decoder1 = decoder4(20*init_size, init_size)
+        self.decoder2 = decoder5(8*init_size,init_size)
+        self.interEncoder1 = spconv.SparseMaxPool3d(indice_key="inter1", kernel_size=3,algo=ConvAlgo.Native)
+        self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=3,algo=ConvAlgo.Native)
+        self.interDecoder1 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.interDecoder2 = spconv.SparseInverseConv3d(4 * init_size, 4 * init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+
+        self.sidea1 = spconv.SparseInverseConv3d(4 * init_size, 4 * init_size, indice_key="inter1", kernel_size=3,bias=False, algo=ConvAlgo.Native)
+
+        self.logits1 = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit1", kernel_size=1, stride=1,
+                                         padding=1,
+                                         bias=True, algo=ConvAlgo.Native)
+        self.logits2 = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit2", kernel_size=1, stride=1,
+                                         padding=1,
+                                         bias=True, algo=ConvAlgo.Native)
+        self.logits = spconv.SubMConv3d(8 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1, padding=1,
+                                        bias=True,algo=ConvAlgo.Native)
+    def forward(self, voxel_features, coors, batch_size):
+       coors = coors.int()
+       ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
+                                      batch_size)
+       x1=self.encoder1.forward(ret)
+       x2i=self.interEncoder1.forward(x1)
+       x2o=self.encoder2.forward(x2i)
+       x3i=self.interEncoder2.forward(x2o)
+       x3o=self.encoder3.forward(x3i)
+       y1i=self.interDecoder1.forward(x3o)
+       y1i = y1i.replace_feature(torch.cat((y1i.features, x2i.features), 1))
+       y1o=self.decoder1.forward(y1i)
+       zy11 = self.sidea1.forward(y1o)
+       y2i=self.interDecoder2.forward(y1o)
+       y2i = y2i.replace_feature(torch.cat((y2i.features, x1.features), 1))
+       y2o=self.decoder2.forward(y2i)
+       z = torch.cat((y2o.features, zy11.features), 1)
+       logits1= self.logits1(y2o)
+       logits2 = self.logits2(zy11)
+       ret = ret.replace_feature(z)
+       logits = self.logits(ret)
+
+       y= logits.dense(),logits2.dense(),logits1.dense()
        return y
 class U2NETP2(nn.Module):
     def __init__(self,
                  output_shape,
                  num_input_features=128,
-                 nclasses=20,  init_size=16):
-        super(U2NETP2, self).__init__()
+                 nclasses=20, init_size=16):
+        super(U2NET, self).__init__()
         sparse_shape = np.array(output_shape)
         print(sparse_shape)
         self.sparse_shape = sparse_shape
         self.nclasses = nclasses
         self.encoder1 = encoder1(num_input_features, init_size)
-        self.encoder2 = encoder2(4*init_size , init_size)
-        self.encoder3 = encoder3(8*init_size , init_size)
-        self.encoder4 = encoder4(16*init_size, init_size)
-        self.encoder5 = encoder5(32*init_size, init_size)
-        self.decoder1 = decoder1(64*init_size, init_size)
-        self.decoder2 = decoder2(64*init_size, init_size)
-        self.decoder3 = decoder3(32*init_size, init_size)
-        self.decoder4 = decoder4(16*init_size,init_size)
-        self.decoder5 = decoder5(8*init_size,init_size)
-        self.interEncoder1 = spconv.SparseMaxPool3d(indice_key="inter1", kernel_size=3,algo=ConvAlgo.Native)
-        self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=2,algo=ConvAlgo.Native)
-        self.interEncoder3 = spconv.SparseMaxPool3d(indice_key="inter3", kernel_size=2,algo=ConvAlgo.Native)
-        self.interEncoder4 = spconv.SparseMaxPool3d(indice_key="inter4", kernel_size=2,algo=ConvAlgo.Native)
-        self.interDecoder1 = spconv.SparseInverseConv3d (64 * init_size, 64 * init_size, indice_key="inter4", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder2 = spconv.SparseInverseConv3d(64 * init_size, 64 * init_size, indice_key="inter3", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder3 = spconv.SparseInverseConv3d(32 * init_size, 32 * init_size, indice_key="inter2", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder4 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
-        self.sidea1 = spconv.SparseInverseConv3d(32 * init_size, 32*init_size, indice_key="inter4", kernel_size=2, bias=False,algo=ConvAlgo.Native)
-        self.sidea2 = spconv.SparseInverseConv3d(32 * init_size, 32*init_size, indice_key="inter3", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.sidea3 = spconv.SparseInverseConv3d(32 * init_size, 32*init_size, indice_key="inter2", kernel_size=2, bias=False,algo=ConvAlgo.Native)
-        self.sidea4 = spconv.SparseInverseConv3d(32 * init_size, 32*init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
+        self.encoder2 = encoder2(4 * init_size, init_size)
+        self.encoder3 = encoder3(8 * init_size, init_size)
+        self.encoder4 = encoder4(16 * init_size, init_size)
+        self.decoder1 = decoder2(48 * init_size, init_size)
+        self.decoder2 = decoder3(24 * init_size, init_size)
+        self.decoder3 = decoder4(12 * init_size, init_size)
+        self.interEncoder1 = spconv.SparseMaxPool3d(indice_key="inter1", kernel_size=3, algo=ConvAlgo.Native)
+        self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=3, algo=ConvAlgo.Native)
+        self.interEncoder3 = spconv.SparseMaxPool3d(indice_key="inter3", kernel_size=3, algo=ConvAlgo.Native)
+        self.interDecoder1 = spconv.SparseInverseConv3d(32 * init_size, 32 * init_size, indice_key="inter3",
+                                                        kernel_size=3, bias=False, algo=ConvAlgo.Native)
+        self.interDecoder2 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2",
+                                                        kernel_size=3, bias=False, algo=ConvAlgo.Native)
+        self.interDecoder3 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1",
+                                                        kernel_size=3, bias=False, algo=ConvAlgo.Native)
 
-        self.sideb2 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter3", kernel_size=2, bias=False, algo=ConvAlgo.Native)
-        self.sideb3 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2", kernel_size=2, bias=False, algo=ConvAlgo.Native)
-        self.sideb4 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter1", kernel_size=3,bias=False, algo=ConvAlgo.Native)
+        self.sidea1 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2", kernel_size=3,
+                                                 bias=False, algo=ConvAlgo.Native)
+        self.sidea2 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter1", kernel_size=3,
+                                                 bias=False, algo=ConvAlgo.Native)
 
-        self.sidec3 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter2", kernel_size=2,bias=False, algo=ConvAlgo.Native)
-        self.sidec4 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1", kernel_size=3, bias=False, algo=ConvAlgo.Native)
+        self.sideb1 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1", kernel_size=3,
+                                                 bias=False, algo=ConvAlgo.Native)
 
-        self.sided4 = spconv.SparseInverseConv3d(4 * init_size, 4 * init_size, indice_key="inter1", kernel_size=3, bias=False, algo=ConvAlgo.Native)
-        self.logits = spconv.SubMConv3d(64 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
+        self.logits = spconv.SubMConv3d(28 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1,
+                                        padding=1,
+                                        bias=True, algo=ConvAlgo.Native)
+
     def forward(self, voxel_features, coors, batch_size):
-       coors = coors.int()
-       ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
+        coors = coors.int()
+        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
                                       batch_size)
-       x1=self.encoder1.forward(ret)
-       x2i=self.interEncoder1.forward(x1)
-       x2o=self.encoder2.forward(x2i)
-       x3i=self.interEncoder2.forward(x2o)
-       x3o=self.encoder3.forward(x3i)
-       x4i=self.interEncoder3.forward(x3o)
-       x4o=self.encoder4.forward(x4i)
-       x5i=self.interEncoder4.forward(x4o)
-       x5o=self.encoder5.forward(x5i)
-       x5o = x5o.replace_feature(torch.cat((x5o.features, x5i.features), 1))
-       y1i=self.interDecoder1.forward(x5o)
-       y1o=self.decoder1.forward(y1i)
-       zy11 = self.sidea1.forward(y1o)
-       zy12 = self.sidea2.forward(zy11)
-       zy13 = self.sidea3.forward(zy12)
-       zy14 = self.sidea4.forward(zy13)
-       y1o = y1o.replace_feature(torch.cat((y1o.features, x4o.features), 1))
-       y2i=self.interDecoder2.forward(y1o)
-       y2o=self.decoder2.forward(y2i)
-       zy21 = self.sideb2.forward(y2o)
-       zy22 = self.sideb3.forward(zy21)
-       zy23 = self.sideb4.forward(zy22)
-       y2o = y2o.replace_feature(torch.cat((y2o.features, x3o.features), 1))
-       y3i=self.interDecoder3.forward(y2o)
-       y3o=self.decoder3.forward(y3i)
-       zy31 = self.sidec3.forward(y3o)
-       zy32 = self.sidec4.forward(zy31)
-       y3o = y3o.replace_feature(torch.cat((y3o.features, x2o.features), 1))
-       y4i=self.interDecoder4.forward(y3o)
-       y4o= self.decoder4.forward(y4i)
-       zy41 = self.sided4.forward(y4o)
-       y4o = y4o.replace_feature(torch.cat((y4o.features, x1.features), 1))
-       y5o = self.decoder5.forward(y4o)
-       z = torch.cat((y5o.features, zy41.features, zy32.features, zy23.features, zy14.features), 1)
+        x1 = self.encoder1.forward(ret)
+        x2i = self.interEncoder1.forward(x1)
+        x2o = self.encoder2.forward(x2i)
+        x3i = self.interEncoder2.forward(x2o)
+        x3o = self.encoder3.forward(x3i)
+        x4i = self.interEncoder3.forward(x3o)
+        x4o = self.encoder4.forward(x4i)
+        y1i = self.interDecoder1.forward(x4o)
+        y1i = y1i.replace_feature(torch.cat((y1i.features, x3o.features), 1))
+        y1o = self.decoder1.forward(y1i)
+        zy11 = self.sidea1.forward(y1o)
+        zy12 = self.sidea2.forward(zy11)
+        y2i = self.interDecoder2.forward(y1o)
+        y2i = y2i.replace_feature(torch.cat((y2i.features, x2o.features), 1))
+        y2o = self.decoder2.forward(y2i)
+        zy21 = self.sideb1.forward(y2o)
+        y3i = self.interDecoder3.forward(y2o)
+        y3i = y3i.replace_feature(torch.cat((y3i.features, x1.features), 1))
+        y3o = self.decoder3.forward(y3i)
+        z = torch.cat((y3o.features, zy21.features, zy12.features), 1)
+        ret = ret.replace_feature(z)
+        logits = self.logits(ret)
 
-       y5o = y5o.replace_feature(z)
-       logits = self.logits(y5o)
-
-       y= logits.dense()
-       return [y]
+        return [logits]
 
 class U2NETP(nn.Module):
     def __init__(self,
                  output_shape,
                  num_input_features=128,
-                 nclasses=20,  init_size=16):
-        super(U2NETP, self).__init__()
+                 nclasses=20, init_size=16):
+        super(U2NET, self).__init__()
         sparse_shape = np.array(output_shape)
         print(sparse_shape)
         self.sparse_shape = sparse_shape
         self.nclasses = nclasses
         self.encoder1 = encoder1(num_input_features, init_size)
-        self.encoder2 = encoder2(4*init_size , init_size)
-        self.encoder3 = encoder3(8*init_size , init_size)
-        self.encoder4 = encoder4(16*init_size, init_size)
-        self.encoder5 = encoder5(32*init_size, init_size)
-        self.decoder1 = decoder1(64*init_size, init_size)
-        self.decoder2 = decoder2(64*init_size, init_size)
-        self.decoder3 = decoder3(32*init_size, init_size)
-        self.decoder4 = decoder4(16*init_size,init_size)
-        self.decoder5 = decoder5(8*init_size,init_size)
-        self.interEncoder1 = spconv.SparseMaxPool3d(indice_key="inter1", kernel_size=3,algo=ConvAlgo.Native)
-        self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=2,algo=ConvAlgo.Native)
-        self.interEncoder3 = spconv.SparseMaxPool3d(indice_key="inter3", kernel_size=2,algo=ConvAlgo.Native)
-        self.interEncoder4 = spconv.SparseMaxPool3d(indice_key="inter4", kernel_size=2,algo=ConvAlgo.Native)
-        self.interDecoder1 = spconv.SparseInverseConv3d (64 * init_size, 64 * init_size, indice_key="inter4", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder2 = spconv.SparseInverseConv3d(64 * init_size, 64 * init_size, indice_key="inter3", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder3 = spconv.SparseInverseConv3d(32 * init_size, 32 * init_size, indice_key="inter2", kernel_size=2,bias=False,algo=ConvAlgo.Native)
-        self.interDecoder4 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter1", kernel_size=3,bias=False,algo=ConvAlgo.Native)
-        self.logits = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1, padding=1,
-                                        bias=True,algo=ConvAlgo.Native)
+        self.encoder2 = encoder2(4 * init_size, init_size)
+        self.encoder3 = encoder3(8 * init_size, init_size)
+        self.encoder4 = encoder4(16 * init_size, init_size)
+        self.decoder1 = decoder2(48 * init_size, init_size)
+        self.decoder2 = decoder3(24 * init_size, init_size)
+        self.decoder3 = decoder4(12 * init_size, init_size)
+        self.interEncoder1 = spconv.SparseMaxPool3d(indice_key="inter1", kernel_size=3, algo=ConvAlgo.Native)
+        self.interEncoder2 = spconv.SparseMaxPool3d(indice_key="inter2", kernel_size=3, algo=ConvAlgo.Native)
+        self.interEncoder3 = spconv.SparseMaxPool3d(indice_key="inter3", kernel_size=3, algo=ConvAlgo.Native)
+        self.interDecoder1 = spconv.SparseInverseConv3d(32 * init_size, 32 * init_size, indice_key="inter3",
+                                                        kernel_size=3, bias=False, algo=ConvAlgo.Native)
+        self.interDecoder2 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2",
+                                                        kernel_size=3, bias=False, algo=ConvAlgo.Native)
+        self.interDecoder3 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1",
+                                                        kernel_size=3, bias=False, algo=ConvAlgo.Native)
+
+        self.sidea1 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter2", kernel_size=3,
+                                                 bias=False, algo=ConvAlgo.Native)
+        self.sidea2 = spconv.SparseInverseConv3d(16 * init_size, 16 * init_size, indice_key="inter1", kernel_size=3,
+                                                 bias=False, algo=ConvAlgo.Native)
+
+        self.sideb1 = spconv.SparseInverseConv3d(8 * init_size, 8 * init_size, indice_key="inter1", kernel_size=3,
+                                                 bias=False, algo=ConvAlgo.Native)
+
+        self.logits = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit", kernel_size=1, stride=1,
+                                        padding=1,
+                                        bias=True, algo=ConvAlgo.Native)
+
     def forward(self, voxel_features, coors, batch_size):
-       coors = coors.int()
-       ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
+        coors = coors.int()
+        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
                                       batch_size)
-       x1=self.encoder1.forward(ret)
-       x2i=self.interEncoder1.forward(x1)
-       x2o=self.encoder2.forward(x2i)
-       x3i=self.interEncoder2.forward(x2o)
-       x3o=self.encoder3.forward(x3i)
-       x4i=self.interEncoder3.forward(x3o)
-       x4o=self.encoder4.forward(x4i)
-       x5i=self.interEncoder4.forward(x4o)
-       x5o=self.encoder5.forward(x5i)
-       x5o = x5o.replace_feature(torch.cat((x5o.features, x5i.features), 1))
-       y1i=self.interDecoder1.forward(x5o)
-       y1o=self.decoder1.forward(y1i)
-       y1o = y1o.replace_feature(torch.cat((y1o.features, x4o.features), 1))
-       y2i=self.interDecoder2.forward(y1o)
-       y2o=self.decoder2.forward(y2i)
-       y2o = y2o.replace_feature(torch.cat((y2o.features, x3o.features), 1))
-       y3i=self.interDecoder3.forward(y2o)
-       y3o=self.decoder3.forward(y3i)
-       y3o = y3o.replace_feature(torch.cat((y3o.features, x2o.features), 1))
-       y4i=self.interDecoder4.forward(y3o)
-       y4o= self.decoder4.forward(y4i)
-       y4o = y4o.replace_feature(torch.cat((y4o.features, x1.features), 1))
-       y5o = self.decoder5.forward(y4o)
-       logits = self.logits(y5o)
-       y= logits.dense()
-       return [y]
+        x1 = self.encoder1.forward(ret)
+        x2i = self.interEncoder1.forward(x1)
+        x2o = self.encoder2.forward(x2i)
+        x3i = self.interEncoder2.forward(x2o)
+        x3o = self.encoder3.forward(x3i)
+        x4i = self.interEncoder3.forward(x3o)
+        x4o = self.encoder4.forward(x4i)
+        y1i = self.interDecoder1.forward(x4o)
+        y1i = y1i.replace_feature(torch.cat((y1i.features, x3o.features), 1))
+        y1o = self.decoder1.forward(y1i)
+        y2i = self.interDecoder2.forward(y1o)
+        y2i = y2i.replace_feature(torch.cat((y2i.features, x2o.features), 1))
+        y2o = self.decoder2.forward(y2i)
+        y3i = self.interDecoder3.forward(y2o)
+        y3i = y3i.replace_feature(torch.cat((y3i.features, x1.features), 1))
+        y3o = self.decoder3.forward(y3i)
+        logits = self.logits(y3o)
+
+        return [logits]
 
 
 

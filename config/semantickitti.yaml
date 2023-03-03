@@ -5,7 +5,7 @@ format_version: 4
 ## Model options
 model_params:
   model_architecture: "cylinder_asym"
-  model_name: "U2NETP2"
+  model_name: "U2NET"
 
   output_shape:
     - 480
